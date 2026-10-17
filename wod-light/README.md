@@ -2,7 +2,15 @@
 
 A small **private St. Louis v2 campaign module** for Foundry VTT v14 + World of Darkness 20th (`worldofdarkness`, approximately 7.3.x). No Torch dependency, GM panel, custom lighting engine or battery bookkeeping.
 
-## Install
+## Install with a manifest URL
+
+In Foundry Setup, choose **Add-on Modules → Install Module**, paste:
+
+`https://github.com/rebsiot/WoD-Light-Sources/releases/latest/download/module.json`
+
+and install. This GitHub Release manifest points to the matching installable ZIP. Then enable **WoD Light** in the world.
+
+## Manual installation
 
 1. Back up your Foundry world. Stop the Foundry server before updating files.
 2. Extract the whole `wod-light` folder into **`Z:\Data\modules\`** (Ubuntu Foundry user-data root is mapped as `Z:`). The manifest must be at `Z:\Data\modules\wod-light\module.json`.

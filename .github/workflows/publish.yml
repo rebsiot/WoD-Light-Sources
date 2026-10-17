@@ -1,0 +1,53 @@
+name: Publish WoD Light release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'wod-light/**'
+      - '.github/workflows/publish.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wod-light-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify manifest, package, and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check wod-light/scripts/main.js
+          node --check wod-light/scripts/presets.js
+          node tests/smoke.mjs
+          VERSION="$(node -p "require('./wod-light/module.json').version")"
+          TAG="v${VERSION}"
+          node - <<'NODE'
+          const assert = require('node:assert/strict');
+          const m = require('./wod-light/module.json');
+          assert.equal(m.id, 'wod-light');
+          assert.equal(m.download, `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${m.version}/wod-light.zip`);
+          assert.equal(m.manifest, `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/latest/download/module.json`);
+          NODE
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; leaving the published artifacts unchanged."
+            exit 0
+          fi
+          (cd wod-light && zip -q -r ../wod-light.zip .)
+          test "$(unzip -Z1 wod-light.zip | grep -cx 'module.json')" -eq 1
+          unzip -p wod-light.zip module.json | node -e "let s=''; process.stdin.on('data', d=>s+=d); process.stdin.on('end', ()=> { const m=JSON.parse(s); if(m.id!=='wod-light') process.exit(1) })"
+          gh release create "$TAG" wod-light.zip wod-light/module.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "WoD Light v${VERSION}" \
+            --notes-file wod-light/RELEASE_NOTES.md
