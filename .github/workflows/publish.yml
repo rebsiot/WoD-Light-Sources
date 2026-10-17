@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'wod-light/**'
+      - 'tests/**'
       - '.github/workflows/publish.yml'
   workflow_dispatch:
 
@@ -27,10 +28,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --check wod-light/scripts/main.js
-          node --check wod-light/scripts/presets.js
-          node --check wod-light/scripts/finder.js
-          node --check wod-light/scripts/held-lights.js
+          for script in wod-light/scripts/*.js; do node --check "$script"; done
+          node --check tests/smoke.mjs
           node tests/smoke.mjs
           test "$(find wod-light/assets/icons -maxdepth 1 -name '*.svg' | wc -l)" -eq 51
           python3 -c "from pathlib import Path; from xml.etree import ElementTree as ET; [ET.parse(str(p)) for p in Path('wod-light/assets/icons').glob('*.svg')]"
@@ -40,18 +39,26 @@ jobs:
           const assert = require('node:assert/strict');
           const m = require('./wod-light/module.json');
           assert.equal(m.id, 'wod-light');
+          assert.equal(m.compatibility.minimum, '14');
+          assert.equal(m.relationships?.systems, undefined);
           assert.equal(m.download, `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${m.version}/wod-light.zip`);
           assert.equal(m.manifest, `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/latest/download/module.json`);
           NODE
+          (cd wod-light && zip -q -r ../wod-light.zip .)
+          unzip -tq wod-light.zip
+          test "$(unzip -Z1 wod-light.zip | grep -cx 'module.json')" -eq 1
+          test "$(unzip -Z1 wod-light.zip | grep -cx 'scripts/system-adapters.js')" -eq 1
+          test "$(unzip -Z1 wod-light.zip | grep -c '^assets/icons/.*\.svg$')" -eq 51
+          if unzip -Z1 wod-light.zip | grep -Eiq '(^|/)(private|[0-9]+-.*handoff|.*credentials|.*cookies)'; then
+            echo 'Refusing to publish internal files in the ZIP'
+            exit 1
+          fi
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG already exists; leaving the published artifacts unchanged."
             exit 0
           fi
-          (cd wod-light && zip -q -r ../wod-light.zip .)
-          test "$(unzip -Z1 wod-light.zip | grep -cx 'module.json')" -eq 1
-          unzip -p wod-light.zip module.json | node -e "let s=''; process.stdin.on('data', d=>s+=d); process.stdin.on('end', ()=> { const m=JSON.parse(s); if(m.id!=='wod-light') process.exit(1) })"
           gh release create "$TAG" wod-light.zip wod-light/module.json \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "WoD Light v${VERSION}" \
+            --title "WoD Light v${VERSION} - Cross-system test release" \
             --notes-file wod-light/RELEASE_NOTES.md

@@ -1,4 +1,5 @@
 import { PRESETS, PRESET_BY_ID, GROUPS } from "./presets.js";
+import { getSystemAdapter, systemCanCreateItems, presetItemData, itemIsAvailable, conflictsWithPf2eTokenLight } from "./system-adapters.js";
 import { installHeldLightOffsets } from "./held-lights.js";
 import { registerLightFinderTool, showLightFinder, locateWoDLight, closeLightOverlays, refreshLightMarkers, pulseLightPosition, onLightHover, onLightControl, onCanvasPointerMove, onCanvasPointerUp, onCanvasLayerActivated, onLightingLayerDeactivated } from "./finder.js";
 
@@ -16,6 +17,11 @@ function warn(message, error) {
 // A compact, opt-in library install: no changes to existing Items or other world folders.
 export async function installPresets() {
   if (!game.user.isGM) return 0;
+  const adapter = getSystemAdapter();
+  if (!systemCanCreateItems(adapter)) {
+    ui.notifications.warn("WoD Light: this game system does not have a supported native light-preset Item type. No Items were changed.");
+    return 0;
+  }
   let root = game.folders.find(f => f.type === "Item" && f.getFlag(MOD, "libraryRoot"));
   if (!root) {
     // Don't annex a player's existing unrelated folder with this name.
@@ -40,16 +46,8 @@ export async function installPresets() {
   }
 
   const installed = new Set(game.items.filter(i => i.getFlag(MOD, "presetId")).map(i => i.getFlag(MOD, "presetId")));
-  const missing = PRESETS.filter(p => !installed.has(p.id)).map(p => ({
-    name: p.name,
-    type: "Item", // The native generic equipment Item type in WoD20 7.3.x.
-    folder: groups.get(p.group).id,
-    img: iconForPreset(p),
-    system: {
-      description: `<p>${p.portable ? "Portable light: give this Item to a character to enable its Token HUD light control." : "GM light preset: drag this Item onto a scene to create a normal Foundry Ambient Light."}</p><p>Bright: ${p.light.bright}; Dim: ${p.light.dim} scene units; Cone: ${p.light.angle}&deg;.</p>`
-    },
-    flags: { [MOD]: { presetId: p.id } }
-  }));
+  const missing = PRESETS.filter(p => !installed.has(p.id))
+    .map(p => presetItemData(p, groups.get(p.group).id, adapter, iconForPreset(p)));
   if (missing.length) await Item.createDocuments(missing);
   await game.settings.set(MOD, "presetsInstalled", true);
   ui.notifications.info(`WoD Light: ${missing.length ? `created ${missing.length} light preset Items` : "light presets already installed"}.`);
@@ -64,7 +62,7 @@ export function countMissingPresets() {
 }
 
 export async function offerMissingPresetsOnUpgrade() {
-  if (!game.user.isGM || !game.settings.get(MOD, "presetsInstalled")) return false;
+  if (!game.user.isGM || !getSystemAdapter() || !game.settings.get(MOD, "presetsInstalled")) return false;
   const missing = countMissingPresets();
   if (!missing || game.settings.get(MOD, "catalogPromptedFor") === CATALOG_REVISION) return false;
   // Reserve the prompt even when declined; the GM can still manually run
@@ -189,7 +187,7 @@ function carriedLights(token) {
   const seen = new Set();
   return Array.from(items).flatMap(item => {
     const p = PRESET_BY_ID[item.getFlag(MOD, "presetId")];
-    if (!p?.portable || seen.has(p.id)) return [];
+    if (!p?.portable || !itemIsAvailable(item) || seen.has(p.id)) return [];
     seen.add(p.id);
     return [p];
   });
@@ -207,6 +205,13 @@ export async function setCarriedLight(token, selectedId = null) {
   const active = doc.getFlag(MOD, "activeId");
   if (selectedId && !available.some(p => p.id === selectedId)) return false;
   if (!selectedId && !active) return false;
+
+  // PF2e can apply its own TokenLight rule elements, which may overwrite or
+  // combine with direct TokenDocument light updates. Never fight those rules.
+  if (selectedId && conflictsWithPf2eTokenLight(token?.actor)) {
+    ui.notifications.warn("WoD Light: PF2e already controls this token's lighting via a TokenLight rule. Remove or disable that effect before using the WoD Light HUD.");
+    return false;
+  }
 
   if (!selectedId) {
     const original = doc.getFlag(MOD, "previousLight");
@@ -340,6 +345,11 @@ Hooks.once("ready", async () => {
     findLights: showLightFinder, locateLight: locateWoDLight, presets: PRESETS
   };
   if (!game.user.isGM) return;
+  const adapter = getSystemAdapter();
+  if (!systemCanCreateItems(adapter)) {
+    console.warn("WoD Light | preset Item installation is supported for worldofdarkness, pf2e, and dnd5e only; native scene-light utilities remain available");
+    return;
+  }
   try {
     const count = await refreshPresetIcons();
     if (count) ui.notifications.info(`WoD Light: updated ${count} original preset icons. Customized images were preserved.`);

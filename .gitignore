@@ -1,0 +1,15 @@
+# Private Foundry/user data and generated local artifacts
+*.zip
+*.log
+*.sqlite
+*.db
+*.db-wal
+*.db-shm
+.DS_Store
+node_modules/
+.cache/
+private/
+*TOKEN*
+*.cookie
+*credentials*
+*patreon*

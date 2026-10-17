@@ -1,584 +1,195 @@
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { PRESETS, PRESET_BY_ID } from '../wod-light/scripts/presets.js';
+import {
+  getSystemAdapter, SUPPORTED_SYSTEMS, systemCanCreateItems,
+  presetItemData, itemIsAvailable, conflictsWithPf2eTokenLight
+} from '../wod-light/scripts/system-adapters.js';
 
-// Mock only Foundry's narrowly-used APIs. A successful test is NOT a live Foundry test.
-const events = new Map();
+const root = resolve(import.meta.dirname, '../wod-light');
+const manifest = JSON.parse(readFileSync(resolve(root, 'module.json'), 'utf8'));
+assert.equal(manifest.id, 'wod-light');
+assert.equal(manifest.version, '0.2.0');
+assert.equal(manifest.relationships?.systems, undefined, 'WoD-only system requirement must be removed');
+assert.equal(PRESETS.length, 51);
+assert.equal(PRESETS.filter(p => p.portable).length, 10);
+assert.equal(new Set(PRESETS.map(p => p.id)).size, 51);
+const icons = readdirSync(resolve(root, 'assets/icons')).filter(x => x.endsWith('.svg'));
+assert.equal(icons.length, 51);
+for (const p of PRESETS) {
+  const svg = readFileSync(resolve(root, `assets/icons/${p.id}.svg`), 'utf8');
+  assert.match(svg, /<svg/); assert.match(svg, /<\/svg>/);
+}
+assert.deepEqual(SUPPORTED_SYSTEMS, ['worldofdarkness','pf2e','dnd5e']);
+for (const [system, type, location] of [
+  ['worldofdarkness','Item','description'], ['pf2e','equipment','description'], ['dnd5e','loot','description']
+]) {
+  const adapter = getSystemAdapter(system);
+  assert.equal(adapter.itemType,type);
+  const source = presetItemData(PRESET_BY_ID.flashlight, 'folder-a', adapter, 'img.svg');
+  assert.equal(source.type,type);
+  assert.equal(source.flags['wod-light'].presetId,'flashlight');
+  assert.equal(source.name,'Flashlight');
+  assert.equal(source.folder,'folder-a');
+  assert.ok(system==='worldofdarkness' ? source.system.description.includes('Portable') : source.system.description.value.includes('Portable'));
+  if (system==='pf2e') {
+    assert.deepEqual(source.system.rules, []);
+    assert.equal(source.system.usage.value, 'held-in-one-hand');
+    assert.equal(source.system.equipped.handsHeld,0);
+  }
+  if (system==='dnd5e') assert.equal(source.system.quantity,1);
+}
+assert.equal(getSystemAdapter('tormenta20'), null);
+assert.equal(systemCanCreateItems(null), false);
+assert.equal(systemCanCreateItems(getSystemAdapter('pf2e'), {equipment:{}}), true);
+assert.equal(systemCanCreateItems(getSystemAdapter('pf2e'), {spell:{}}), false);
+assert.equal(itemIsAvailable({system:{quantity:0}}),false);
+assert.equal(itemIsAvailable({system:{quantity:1}}),true);
+assert.equal(itemIsAvailable({system:{}}),true);
+assert.equal(conflictsWithPf2eTokenLight({rules:[{key:'TokenLight'}]},'pf2e'),true);
+assert.equal(conflictsWithPf2eTokenLight({rules:[{key:'TokenLight'}]},'dnd5e'),false);
+assert.equal(conflictsWithPf2eTokenLight({items:[{type:'effect',system:{rules:[{key:'TokenLight'}]}}]},'pf2e'),true);
+assert.equal(conflictsWithPf2eTokenLight({items:[{type:'equipment',system:{equipped:{carryType:'stowed'},rules:[{key:'TokenLight'}]}}]},'pf2e'),false);
+
+const hooks = new Map();
 globalThis.Hooks = {
-  once(name, cb) {
-    const key = `once:${name}`;
-    const previous = events.get(key);
-    // Foundry supports multiple once handlers per hook; our mock must too.
-    events.set(key, previous ? async (...args) => { await previous(...args); return cb(...args); } : cb);
-  },
-  on(name, cb) { events.set(name, cb); }
+  once(name,cb) {hooks.set(`once:${name}`,cb);},
+  on(name,cb) {hooks.set(name,cb);}
 };
+const warnings=[]; const infos=[];
+globalThis.ui={notifications:{info(s){infos.push(s);},warn(s){warnings.push(s);},error(s){throw Error(s);}}};
+let ids=0;
+const newId=()=>`document-${++ids}`;
+const setFlag=(o,field,value)=>{o.flags['wod-light']??={};o.flags['wod-light'][field]=value;};
+const makeDocument = data => ({...data,id:newId(),documentName:'Item', getFlag(ns,key){return this.flags?.[ns]?.[key];}});
+let folders=[],items=[],created=[],controlled=[];
+const store={};
+globalThis.CONFIG={Item:{dataModels:{Item:{},equipment:{},loot:{}}}};
+globalThis.Folder={async create(data){const f=makeDocument({...data,folder:folders.find(x=>x.id===data.folder)??null});folders.push(f);return f;}};
+globalThis.Item={
+  async createDocuments(data){const newItems=data.map(makeDocument);items.push(...newItems);created.push(...newItems);return newItems;},
+  async updateDocuments(updates){for(const update of updates){const item=items.find(x=>x.id===update._id);Object.assign(item,update);}return updates;}
+};
+globalThis.foundry={utils:{deepClone:structuredClone},applications:{api:{DialogV2:{async confirm(){return true;}}}}};
+globalThis.game={
+  user:{isGM:true}, system:{id:'worldofdarkness'},
+  items:{filter(fn){return items.filter(fn);}, get(id){return items.find(x=>x.id===id);}},
+  folders:{find(fn){return folders.find(fn);}, some(fn){return folders.some(fn);}},
+  settings:{register(ns,key,opt){store[`${ns}.${key}`]=opt.default;},get(ns,key){return store[`${ns}.${key}`];},async set(ns,key,value){store[`${ns}.${key}`]=value;}}
+};
+const lights=[];let selectionCount=0;
+const scene={id:'scene-1',lights:{contents:lights},async createEmbeddedDocuments(type,data){assert.equal(type,'AmbientLight');const docs=data.map(makeDocument);lights.push(...docs);return docs;}};
+globalThis.canvas={scene,level:null,lighting:{active:false,activate(){this.active=true;return this;},get(id){return {control(){selectionCount++;return true;}};}},clientCoordinatesFromCanvas({x,y}){return{x,y}},isOffscreen(){return false;}};
+globalThis.fromUuidSync=uuid=>items.find(i=>`Item.${i.id}`===uuid)??null;
+const main=await import('../wod-light/scripts/main.js');
+await hooks.get('once:init')();
+assert.equal(typeof hooks.get('getSceneControlButtons'),'function');
 
-const folders = [];
-const items = [];
-const stored = {};
-const lightsCreated = [];
-const placedLights = new Map();
-const selectedLightIds = [];
-const activatedLightTools = [];
-const warnings = [];
-const infos = [];
-const panCalls = [];
-const catalogPrompts = [];
-let nextCatalogConfirmation = true;
-let uid = 0;
-const record = (input) => ({
-  ...input, id: `fake${++uid}`,
-  getFlag(ns, field) { return this.flags?.[ns]?.[field]; }
-});
-
-globalThis.Folder = {
-  async create(input) {
-    const folder = record({ ...input, folder: folders.find(f => f.id === input.folder) || null });
-    folders.push(folder);
-    return folder;
+async function newWorld(system){
+  folders=[];items=[];created=[];warnings.length=0;infos.length=0;
+  game.system.id=system;
+  store['wod-light.presetsInstalled']=false;
+  store['wod-light.catalogPromptedFor']='';
+}
+for (const [system,type] of [['worldofdarkness','Item'],['pf2e','equipment'],['dnd5e','loot']]) {
+  await newWorld(system);
+  assert.equal(await main.installPresets(),51,system);
+  assert.equal(items.length,51);
+  assert.equal(folders.length,5);
+  assert.ok(items.every(item=>item.type===type));
+  assert.equal(await main.installPresets(),0,'install must be idempotent');
+  assert.equal(items.length,51);
+  // Reuse existing flag and Item IDs. In particular do not rewrite customized image.
+  const original=items[0];original.img='worlds/custom/desk.webp';
+  const oldId=original.id;
+  assert.equal(await main.refreshPresetIcons(),0);
+  assert.equal(items[0].id,oldId);assert.equal(items[0].img,'worlds/custom/desk.webp');
+  // Scene drops use native AmbientLight and retain existing preset IDs.
+  assert.equal(await main.placePresetOnScene('subway-strip',400,240),true);
+  assert.equal(lights.at(-1).flags['wod-light'].presetId,'subway-strip');
+  assert.equal(lights.at(-1).x,400);assert.equal(lights.at(-1).config.dim,38);
+  // Inventory Items with flags trigger portable lights, with existing Token
+  // config restored after off; Foundry decides animation, visibility, and walls.
+  const lamp=items.find(x=>x.getFlag('wod-light','presetId')==='flashlight');
+  const token={actor:{items:[lamp],rules:[]},document:{
+    isOwner:true,light:{bright:3,dim:7,color:'#44aadd',angle:360},flags:{},
+    getFlag(ns,key){return this.flags[ns]?.[key];},
+    async update(changes){for(const[key,value]of Object.entries(changes)){
+      if(key==='light')this.light=structuredClone(value);
+      else if(key.startsWith('flags.wod-light.'))setFlag(this,key.slice('flags.wod-light.'.length),structuredClone(value));
+      else if(key.startsWith('light.'))this.light[key.slice(6)]=value;
+    }}
+  }};
+  const originalLight=structuredClone(token.document.light);
+  assert.equal(await main.setCarriedLight(token,'flashlight'),true);
+  assert.equal(token.document.light.angle,55);
+  assert.equal(token.document.getFlag('wod-light','activeId'),'flashlight');
+  assert.equal(await main.setCarriedLight(token,null),true);
+  assert.deepEqual(token.document.light,originalLight);
+  if(system==='pf2e'){
+    token.actor.rules=[{key:'TokenLight'}];
+    assert.equal(await main.setCarriedLight(token,'flashlight'),false,'do not fight PF2e TokenLight rules');
+    assert.match(warnings.at(-1),/TokenLight/);
   }
-};
-globalThis.Item = {
-  async createDocuments(documents) { for (const doc of documents) items.push(record(doc)); return documents; },
-  async updateDocuments(updates) {
-    for (const update of updates) Object.assign(items.find(i => i.id === update._id), update);
-    return updates;
-  }
-};
-globalThis.foundry = {
-  utils: { deepClone: structuredClone },
-  applications: { api: { DialogV2: { async confirm(options) { catalogPrompts.push(options); return nextCatalogConfirmation; } } } }
-};
-// Minimal Foundry v14 light-origin and emitted-source seams. Mocks do NOT
-// establish live compatibility; they prove that unrelated light sources are safe.
-class MockTokenDocument {
-  constructor({ activeId = null, rotation = 0, width = 1, height = 1 } = {}) {
-    this.width = width; this.height = height; this.rotation = rotation;
-    this.x = 100; this.y = 200; this.elevation = 5;
-    this.light = { angle: activeId === 'flashlight' ? 55 : 360 };
-    this.flags = { 'wod-light': { activeId } };
-  }
-  getFlag(namespace, key) { return this.flags[namespace]?.[key]; }
-  getSize(data = {}) { return { width: (data.width ?? this.width) * 100, height: (data.height ?? this.height) * 100 }; }
-  getLightOrigin(data = {}) {
-    return { x: (data.x ?? this.x) + 50, y: (data.y ?? this.y) + 50, elevation: data.elevation ?? this.elevation };
+  // A tagged fixture that is not portable never powers a Token HUD.
+  assert.equal(await main.setCarriedLight(token,'subway-strip'),false);
+  if(system==='dnd5e'){
+    assert.equal(lamp.system.quantity,1);
+    lamp.system.quantity=0;
+    assert.equal(await main.setCarriedLight(token,'flashlight'),false);
   }
 }
-class MockTokenPlaceable {
-  constructor(doc) { this.document = doc; }
-  _getLightSourceData() { return { rotation: this.document.rotation, angle: this.document.light.angle, color: '#fff' }; }
-}
-globalThis.foundry.documents = { TokenDocument: MockTokenDocument };
-globalThis.foundry.canvas = { placeables: { Token: MockTokenPlaceable } };
-globalThis.ui = { notifications: { info(message) { infos.push(message); }, warn(message) { warnings.push(message); }, error(message) { throw Error(message); } } };
-globalThis.game = {
-  user: { isGM: true },
-  items: { filter(cb) { return items.filter(cb); }, get(id) { return items.find(i => i.id === id); } },
-  folders: { find(cb) { return folders.find(cb); }, some(cb) { return folders.some(cb); } },
-  settings: {
-    register(ns, name, options) { stored[`${ns}.${name}`] = options.default; },
-    get(ns, name) { return stored[`${ns}.${name}`]; },
-    async set(ns, name, val) { stored[`${ns}.${name}`] = val; }
+// Native actor-owned copies use the same preset flag, even after Item type
+// conversion; players control only their owned Token HUD (not world scene drops).
+await newWorld('dnd5e');
+await main.installPresets();
+const actorFlashlight=items.find(x=>x.getFlag('wod-light','presetId')==='flashlight');
+game.user.isGM=false;
+const playerToken={actor:{items:[actorFlashlight]},document:{isOwner:true,light:{bright:0,dim:0},flags:{},getFlag(ns,k){return this.flags[ns]?.[k];},async update(u){
+  for(const[k,v]of Object.entries(u)){
+    if(k==='light')this.light=structuredClone(v);
+    else if(k.startsWith('flags.wod-light.'))setFlag(this,k.substring('flags.wod-light.'.length),structuredClone(v));
+    else if(k.startsWith('light.'))this.light[k.substring(6)]=v;
   }
+}}};
+assert.equal(await main.setCarriedLight(playerToken,'flashlight'),true);
+assert.equal(playerToken.document.getFlag('wod-light','activeId'),'flashlight');
+assert.equal(await main.setCarriedLight(playerToken),true);
+playerToken.document.isOwner=false;
+assert.equal(await main.setCarriedLight(playerToken,'flashlight'),false);
+assert.equal(await main.placePresetOnScene('office-warm',10,10),false,'players cannot create Ambient Lights');
+game.user.isGM=true;
+
+// Shared native Token light-origin adjustment retains prior geometry and
+// only runs while a module portable preset is actually activated.
+const held=await import('../wod-light/scripts/held-lights.js');
+const tokenDoc={
+  rotation:0, flags:{'wod-light':{activeId:'flashlight'}},
+  getFlag(ns,key){return this.flags[ns]?.[key];},
+  getSize(){return{width:100,height:100};}
 };
-const subwayScene = {
-  id: 'scene-subway',
-  levels: { get(id) { return id === 'subway-platform' ? { name: 'Subway Platform' } : { name: 'Other Floor' }; } },
-  lights: { contents: [], get(id) { return this.contents.find(d => d.id === id); } },
-  async createEmbeddedDocuments(type, data) {
-    const docs = data.map(input => ({ ...input, id: `light-${++uid}`, getFlag(ns, field) { return this.flags?.[ns]?.[field]; } }));
-    this.lights.contents.push(...docs);
-    lightsCreated.push({ type, data, docs });
-    for (const doc of docs) {
-      placedLights.set(doc.id, {
-        control() { selectedLightIds.push(doc.id); return true; }
-      });
-    }
-    return docs;
-  }
-};
-globalThis.canvas = {
-  scene: subwayScene,
-  level: { id: 'subway-platform', elevation: { bottom: -20, top: -10 } },
-  async animatePan(position) { panCalls.push(position); return true; },
-  clientCoordinatesFromCanvas({x,y}) { return {x,y}; },
-  isOffscreen() { return false; },
-  lighting: {
-    active: false,
-    activate({tool}) { this.active = true; activatedLightTools.push(tool); return this; },
-    get(id) { return placedLights.get(id); }
-  }
-};
-globalThis.fromUuidSync = uuid => {
-  const found = items.find(i => `Item.${i.id}` === uuid);
-  if (found) return { ...found, documentName: 'Item' };
-  return null;
-};
+const orig={x:100,y:100,elevation:12};
+assert.deepEqual(held.handheldOrigin(tokenDoc,{rotation:0},orig),{x:142,y:100,elevation:12});
+const turned=held.handheldOrigin(tokenDoc,{rotation:90},orig);
+assert.ok(Math.abs(turned.x-100)<1e-8 && Math.abs(turned.y-142)<1e-8);
+assert.equal(held.outwardSourceData({document:tokenDoc},{rotation:0,angle:55}).rotation,270);
+tokenDoc.flags['wod-light'].activeId=null;
+assert.equal(held.handheldOrigin(tokenDoc,{rotation:0},orig),orig);
 
-const presets = await import('../wod-light/scripts/presets.js');
-const main = await import('../wod-light/scripts/main.js');
-const finder = await import('../wod-light/scripts/finder.js');
-const held = await import('../wod-light/scripts/held-lights.js');
-assert.equal(presets.PRESETS.length, 51);
-assert.equal(new Set(presets.PRESETS.map(p => p.id)).size, 51);
-assert.equal(presets.PRESETS.filter(p => p.portable).length, 10);
-assert.equal(presets.PRESETS.find(p => p.id === 'flashlight').light.angle, 55);
-assert.equal(presets.PRESETS.find(p => p.id === 'ceiling-4x60-warm').light.bright, 18);
-const newPresets = presets.PRESETS.slice(27);
-assert.equal(newPresets.length, 24);
-assert.equal(new Set(newPresets.map(p => p.id)).size, 24);
-const expectedNewGroups = {Indoor:11, Outdoor:5, Effects:6, Portable:2};
-for (const [group, count] of Object.entries(expectedNewGroups)) {
-  assert.equal(newPresets.filter(p => p.group === group).length, count, group);
-}
-assert.equal(presets.PRESET_BY_ID['tv-glow'].light.bright, 0);
-assert.equal(presets.PRESET_BY_ID['subway-strip'].light.bright, 22);
-assert.equal(presets.PRESET_BY_ID['warehouse-highbay'].light.dim, 50);
-assert.equal(presets.PRESET_BY_ID['tower-search'].light.angle, 35);
-assert.equal(presets.PRESET_BY_ID['stage-spot'].light.angle, 40);
-assert.equal(presets.PRESET_BY_ID['dance-strobe'].light.animation.type, 'pulse');
-assert.equal(presets.PRESET_BY_ID['road-flare'].light.animation.type, 'torch');
-assert.equal(presets.PRESET_BY_ID['hand-searchlight'].portable, true);
-assert.equal(presets.PRESET_BY_ID['road-flare'].portable, true);
-
-await events.get('once:init')();
-// Native origin is unchanged unless our Token HUD has enabled a portable Item.
-const plain = new MockTokenDocument();
-assert.deepEqual(plain.getLightOrigin(), {x:150, y:250, elevation:5});
-const emittedPlain = new MockTokenPlaceable(plain);
-assert.equal(emittedPlain._getLightSourceData().rotation, 0);
-const flashlightHeld = new MockTokenDocument({activeId:'flashlight'});
-const right = flashlightHeld.getLightOrigin();
-assert.deepEqual(right, {x:192, y:250, elevation:5});
-assert.deepEqual(flashlightHeld.getLightOrigin({x:300,y:400,elevation:7}), {x:392,y:450,elevation:7});
-assert.equal(new MockTokenPlaceable(flashlightHeld)._getLightSourceData().rotation,270);
-flashlightHeld.rotation = 90;
-assert.ok(Math.abs(flashlightHeld.getLightOrigin().x-150)<1e-8);
-assert.ok(Math.abs(flashlightHeld.getLightOrigin().y-292)<1e-8);
-assert.equal(new MockTokenPlaceable(flashlightHeld)._getLightSourceData().rotation,0);
-flashlightHeld.rotation = 180;
-assert.ok(Math.abs(flashlightHeld.getLightOrigin().x-108)<1e-8);
-flashlightHeld.rotation = 270;
-assert.ok(Math.abs(flashlightHeld.getLightOrigin().y-208)<1e-8);
-const candleHeld = new MockTokenDocument({activeId:'candle'});
-assert.deepEqual(candleHeld.getLightOrigin(),{x:192,y:250,elevation:5});
-assert.equal(new MockTokenPlaceable(candleHeld)._getLightSourceData().rotation,0); // 360-degree light
-const searchlightHeld = new MockTokenDocument({activeId:'hand-searchlight'});
-searchlightHeld.light.angle = 30;
-assert.deepEqual(searchlightHeld.getLightOrigin(), {x:192, y:250, elevation:5});
-assert.equal(new MockTokenPlaceable(searchlightHeld)._getLightSourceData().rotation,270);
-const flareHeld = new MockTokenDocument({activeId:'road-flare'});
-assert.deepEqual(flareHeld.getLightOrigin(), {x:192, y:250, elevation:5});
-assert.equal(new MockTokenPlaceable(flareHeld)._getLightSourceData().rotation, 0);
-const stationary = new MockTokenDocument({activeId:'desk-60-day'});
-assert.deepEqual(stationary.getLightOrigin(),{x:150,y:250,elevation:5});
-assert.equal(new MockTokenPlaceable(stationary)._getLightSourceData().rotation,0);
-const disabled = new MockTokenDocument({activeId:null});
-assert.deepEqual(disabled.getLightOrigin(),{x:150,y:250,elevation:5});
-assert.deepEqual(held.installHeldLightOffsets(),{origin:true,direction:true}); // no stacked patch
-assert.deepEqual(disabled.getLightOrigin(),{x:150,y:250,elevation:5});
-assert.deepEqual(new MockTokenDocument({activeId:'flashlight'}).getLightOrigin(),{x:192,y:250,elevation:5});
-assert.equal(await main.installPresets(), 51);
-assert.equal(folders.length, 5);
-assert.equal(items.length, 51);
-assert.equal(await main.installPresets(), 0);
-assert.equal(items.length, 51);
-assert.equal(stored['wod-light.presetsInstalled'], true);
-// Every preset has its own packaged, parsed SVG, not a recycled Foundry stock icon.
-const iconDir = resolve(import.meta.dirname, '../wod-light/assets/icons');
-assert.equal(readdirSync(iconDir).filter(f => f.endsWith('.svg')).length, 51);
-for (const item of items) {
-  assert.equal(item.img, `modules/wod-light/assets/icons/${item.getFlag('wod-light', 'presetId')}.svg`);
-  const svg = readFileSync(resolve(iconDir, `${item.getFlag('wod-light','presetId')}.svg`), 'utf-8');
-  assert.match(svg, /<svg .*viewBox="0 0 96 96"/);
-  assert.match(svg, /<\/svg>/);
-}
-// Existing item art upgrades only from the module's original generic defaults.
-items[0].img = 'icons/svg/light.svg';
-items[1].img = 'worlds/campaign/custom-lamp.webp';
-assert.equal(await main.refreshPresetIcons(), 1);
-assert.equal(items[0].img, `modules/wod-light/assets/icons/${items[0].getFlag('wod-light','presetId')}.svg`);
-assert.equal(items[1].img, 'worlds/campaign/custom-lamp.webp');
-assert.equal(await main.refreshPresetIcons(), 0);
-// Existing v0.1.6 worlds have 27 old Items, and upgrade offers only the 24 missing.
-const originalItemRefs = new Map(items.filter(i => !newPresets.some(p => p.id === i.getFlag('wod-light', 'presetId'))).map(i => [i.id, i]));
-for (let i = items.length - 1; i >= 0; i--) {
-  if (newPresets.some(p => p.id === items[i].getFlag('wod-light','presetId'))) items.splice(i, 1);
-}
-assert.equal(items.length, 27);
-assert.equal(main.countMissingPresets(), 24);
-assert.equal(await main.offerMissingPresetsOnUpgrade(), true);
-assert.match(catalogPrompts.at(-1).content, /24 missing light presets/);
-assert.equal(items.length, 51);
-assert.equal(main.countMissingPresets(), 0);
-assert.equal(stored['wod-light.catalogPromptedFor'], '51-presets');
-assert.equal(await main.offerMissingPresetsOnUpgrade(), false);
-for (const [id, obj] of originalItemRefs) assert.equal(items.find(i => i.id === id), obj);
-assert.equal(items[1].img, 'worlds/campaign/custom-lamp.webp');
-// A declined offer is never repeated on every login; the GM can manually add later.
-const removedFlareIdx = items.findIndex(i => i.getFlag('wod-light','presetId') === 'road-flare');
-items.splice(removedFlareIdx, 1);
-stored['wod-light.catalogPromptedFor'] = '';
-nextCatalogConfirmation = false;
-const promptCountBefore = catalogPrompts.length;
-assert.equal(await main.offerMissingPresetsOnUpgrade(), false);
-assert.equal(catalogPrompts.length, promptCountBefore + 1);
-assert.equal(await main.offerMissingPresetsOnUpgrade(), false);
-assert.equal(catalogPrompts.length, promptCountBefore + 1);
-assert.equal(main.countMissingPresets(), 1);
-assert.equal(await main.installPresets(), 1);
-assert.equal(main.countMissingPresets(), 0);
-nextCatalogConfirmation = true;
-
-const desk = items.find(i => i.getFlag('wod-light', 'presetId') === 'desk-60-day');
-assert.equal(main.onCanvasDrop(canvas, { type: 'Item', uuid: `Item.${desk.id}`, x: 450, y: 700 }), false);
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(lightsCreated.length, 1);
-assert.equal(lightsCreated[0].type, 'AmbientLight');
-assert.equal(lightsCreated[0].data[0].x, 450);
-assert.equal(lightsCreated[0].data[0].config.color, '#eef4ff');
-assert.deepEqual(lightsCreated[0].data[0].levels, ['subway-platform']);
-assert.equal(lightsCreated[0].data[0].elevation, -20);
-assert.deepEqual(activatedLightTools, ['select']);
-assert.deepEqual(selectedLightIds, [lightsCreated[0].docs[0].id]);
-// A previously created light remains untouched. A level-less scene must still work.
-canvas.level = null;
-assert.equal(await main.placePresetOnScene('office-warm', 90, 120), true);
-assert.equal(lightsCreated.length, 2);
-assert.equal(Object.hasOwn(lightsCreated[1].data[0], 'levels'), false);
-assert.equal(Object.hasOwn(lightsCreated[1].data[0], 'elevation'), false);
-assert.deepEqual(selectedLightIds, [lightsCreated[0].docs[0].id, lightsCreated[1].docs[0].id]);
-// A different Scene must not inherit the current viewed floor or alter controls.
-const otherScene = { id: 'other-scene', async createEmbeddedDocuments(_type, _data) { return [{id: 'other-light'}]; } };
-const priorSelectionCount = selectedLightIds.length;
-assert.equal(await main.placePresetOnScene('office-day', 55, 66, otherScene), true);
-assert.equal(selectedLightIds.length, priorSelectionCount);
-assert.equal(await main.focusPlacedLight(subwayScene, 'not-in-layer'), false);
-// New stationary source should use the same native AmbientLight placement contract.
-const newPlacementCalls = [];
-const isolatedScene = {
-  id: 'test-scene',
-  async createEmbeddedDocuments(type, payload) {
-    newPlacementCalls.push({type, payload});
-    return [{id:'test-light'}];
-  }
-};
-assert.equal(await main.placePresetOnScene('subway-strip', 50, 75, isolatedScene), true);
-assert.equal(newPlacementCalls[0].type, 'AmbientLight');
-assert.equal(newPlacementCalls[0].payload[0].name, 'Subway Platform Strip');
-assert.equal(newPlacementCalls[0].payload[0].config.bright, 22);
-assert.equal(newPlacementCalls[0].payload[0].flags['wod-light'].presetId, 'subway-strip');
-assert.equal(Object.hasOwn(newPlacementCalls[0].payload[0], 'levels'), false);
-
-assert.equal(main.onCanvasDrop(canvas, { type: 'Item', id: 'random', x: 1, y: 2 }), undefined);
-assert.equal(main.onCanvasDrop(canvas, { type: 'Actor', id: desk.id, x: 1, y: 2 }), undefined);
-
-const flashlight = items.find(i => i.getFlag('wod-light', 'presetId') === 'flashlight');
-const candle = items.find(i => i.getFlag('wod-light', 'presetId') === 'candle');
-function makeToken(equipment = [flashlight, candle], isOwner = true) {
-  const doc = {
-    isOwner,
-    light: { ...structuredClone(presets.PRESET_BY_ID['desk-40-warm'].light), bright: 3, dim: 9, angle: 360, color: '#cc7777', alpha: 0.25 },
-    flags: {},
-    getFlag(ns, field) { return this.flags[ns]?.[field] ?? null; },
-    async update(update) {
-      for (const [field, val] of Object.entries(update)) {
-        if (field === 'light') this.light = { ...this.light, ...structuredClone(val) };
-        else if (field.startsWith('flags.wod-light.')) {
-          this.flags['wod-light'] ||= {};
-          this.flags['wod-light'][field.substring('flags.wod-light.'.length)] = structuredClone(val);
-        } else if (field.startsWith('light.')) {
-          this.light[field.substring('light.'.length)] = structuredClone(val);
-        }
-      }
-    }
-  };
-  return { actor: { items: equipment }, document: doc };
-}
-// New carried lights must integrate with the existing HUD contract and off switch.
-const searchlightItem = items.find(i => i.getFlag('wod-light','presetId') === 'hand-searchlight');
-const roadFlareItem = items.find(i => i.getFlag('wod-light','presetId') === 'road-flare');
-const expandedToken = makeToken([searchlightItem, roadFlareItem]);
-const expandedOriginal = structuredClone(expandedToken.document.light);
-assert.equal(await main.setCarriedLight(expandedToken, 'hand-searchlight'), true);
-assert.equal(expandedToken.document.light.angle, 30);
-assert.equal(expandedToken.document.light.dim, 75);
-assert.equal(await main.setCarriedLight(expandedToken, 'road-flare'), true);
-assert.equal(expandedToken.document.light.angle, 360);
-assert.equal(expandedToken.document.light.color, '#ff5252');
-assert.equal(await main.setCarriedLight(expandedToken), true);
-assert.deepEqual(expandedToken.document.light, expandedOriginal);
-const token = makeToken();
-const expectedBefore = structuredClone(token.document.light);
-assert.equal(await main.setCarriedLight(token, 'flashlight'), true);
-assert.equal(token.document.light.angle, 55);
-assert.equal(token.document.light.bright, 12);
-assert.deepEqual(token.document.getFlag('wod-light', 'previousLight'), expectedBefore);
-assert.equal(await main.setCarriedLight(token, 'candle'), true);
-assert.equal(token.document.light.angle, 360);
-assert.equal(token.document.getFlag('wod-light', 'selectedId'), 'candle');
-assert.deepEqual(token.document.getFlag('wod-light', 'previousLight'), expectedBefore);
-assert.equal(await main.setCarriedLight(token), true);
-assert.deepEqual(token.document.light, expectedBefore);
-assert.equal(token.document.getFlag('wod-light', 'activeId'), null);
-assert.equal(await main.setCarriedLight(token, 'desk-60-day'), false);
-
-// Ownership behavior
-const notOwned = makeToken([flashlight], false);
-game.user.isGM = false;
-assert.equal(await main.setCarriedLight(notOwned, 'flashlight'), false);
-assert.equal(await main.setCarriedLight(makeToken([]), 'flashlight'), false);
-assert.equal(await main.setCarriedLight(makeToken([flashlight]), 'flashlight'), true);
-game.user.isGM = true;
-
-// Small fake DOM to verify the HUD injection and click behavior.
-class FakeElement {
-  constructor(tag = 'div') {
-    this.tagName = tag.toUpperCase();
-    this.children = [];
-    this.listeners = {};
-    this.dataset = {};
-    this.innerHTML = '';
-    this.className = '';
-    this.style = {};
-    this.classList = {
-      toggle: (name, value) => {
-        const all = new Set(this.className.split(' ').filter(Boolean));
-        if (value) all.add(name); else all.delete(name);
-        this.className = [...all].join(' ');
-      }
-    };
-  }
-  setAttribute() {}
-  addEventListener(name, fn) { this.listeners[name] = fn; }
-  appendChild(child) { this.children.push(child); child.parentNode = this; }
-  append(...nodes) { nodes.forEach(n => this.appendChild(n)); }
-  remove() { if (this.parentNode) this.parentNode.children = this.parentNode.children.filter(e => e !== this); }
-  contains(node) { return this === node || this.children.some(el => el.contains(node)); }
-  getBoundingClientRect() { return { left: 100, bottom: 100 }; }
-  get offsetWidth() { return 150; }
-  get offsetHeight() { return 120; }
-  querySelector(selector) {
-    if (selector === '.col.left') return this.left ?? null;
-    if (selector === 'menu.col.left') return this.left ?? null;
-    if (selector === '.wod-light-hud-button') return this.children.find(e => e.className.includes('wod-light-hud-button'))
-      ?? this.left?.children.find(e => e.className.includes('wod-light-hud-button')) ?? null;
-    return null;
-  }
-}
-globalThis.HTMLElement = FakeElement;
-globalThis.document = {
-  createElement(tag) { return new FakeElement(tag); },
-  body: new FakeElement('body'),
-  addEventListener() {}, removeEventListener() {}
-};
-globalThis.window = { innerWidth: 1100, innerHeight: 800 };
-const hudRoot = new FakeElement(); hudRoot.left = new FakeElement();
-const hudToken = makeToken([flashlight]);
-main.onTokenHudRender({ object: hudToken }, hudRoot);
-assert.equal(hudRoot.left.children.length, 1);
-main.onTokenHudRender({ object: hudToken }, hudRoot);
-assert.equal(hudRoot.left.children.length, 1);
-const button = hudRoot.left.children[0];
-const fakeClick = { button: 0, preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {} };
-button.listeners.pointerdown(fakeClick);
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(hudToken.document.getFlag('wod-light', 'activeId'), 'flashlight');
-button.listeners.pointerdown(fakeClick);
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(hudToken.document.getFlag('wod-light', 'activeId'), null);
-const removed = makeToken([flashlight]);
-await main.setCarriedLight(removed, 'flashlight');
-removed.actor.items = [];
-const removedLightRoot = new FakeElement(); removedLightRoot.left = new FakeElement();
-main.onTokenHudRender({ object: removed }, removedLightRoot);
-assert.equal(removedLightRoot.left.children.length, 1);
-removedLightRoot.left.children[0].listeners.pointerdown(fakeClick);
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(removed.document.getFlag('wod-light', 'activeId'), null);
-// Context menu selection + last-used preset retained across off/on.
-const twoSourceToken = makeToken([flashlight, candle]);
-const twoSourceRoot = new FakeElement(); twoSourceRoot.left = new FakeElement();
-main.onTokenHudRender({ object: twoSourceToken }, twoSourceRoot);
-const multiButton = twoSourceRoot.left.children[0];
-const rightClick = { button: 2, preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {} };
-multiButton.listeners.pointerdown(rightClick);
-const menu = document.body.children.at(-1);
-assert.equal(menu.children.length, 2);
-menu.children[1].listeners.pointerdown({ preventDefault() {}, stopPropagation() {} });
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(twoSourceToken.document.getFlag('wod-light', 'activeId'), 'candle');
-multiButton.listeners.pointerdown(fakeClick);
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(twoSourceToken.document.getFlag('wod-light', 'activeId'), null);
-multiButton.listeners.pointerdown(fakeClick);
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(twoSourceToken.document.getFlag('wod-light', 'activeId'), 'candle');
-
-const noLightRoot = new FakeElement(); noLightRoot.left = new FakeElement();
-main.onTokenHudRender({ object: makeToken([]) }, noLightRoot);
-assert.equal(noLightRoot.left.children.length, 0);
-// v14 Lighting native control and marker/list lifecycle, including Level guards.
-const controls = { lighting: { name: 'lighting', tools: { select: { order: 1 } } } };
-events.get('getSceneControlButtons')(controls);
-assert.equal(controls.lighting.tools.wodLightFind.button, true);
-assert.equal(controls.lighting.tools.wodLightFind.visible, true);
-assert.equal(typeof controls.lighting.tools.select.onChange, 'function');
-assert.equal(finder.listWoDLights().length, 2);
-canvas.level = { id: 'subway-platform', elevation: { bottom: -20 } };
-const legacy = { id:'older-light', x:900, y:150, name:'Streetlight - Sodium Orange',
-  levels:['old-floor'], getFlag(ns, field) {return field === 'presetId' ? 'street-sodium' : null;} };
-subwayScene.lights.contents.push(legacy);
-assert.equal(finder.listWoDLights().length, 3);
-assert.equal(finder.otherLevel(legacy), true);
-assert.equal(await finder.locateWoDLight('older-light'), false);
-assert.match(warnings.at(-1), /Other Floor/);
-assert.equal(finder.pulseLightPosition(450,700,'Desk Lamp'), true);
-assert.equal(document.body.children.some(e => e.className === 'wod-light-pulse'), true);
-assert.equal(finder.showLightFinder(), true);
-const finderPanel = document.body.children.find(e => e.className === 'wod-light-finder');
-const markerLayer = document.body.children.find(e => e.className === 'wod-light-map-pins');
-assert.ok(finderPanel && markerLayer);
-assert.equal(markerLayer.children.length, 3);
-assert.equal(markerLayer.children.find(e => e.dataset.lightId === legacy.id).hidden, true);
-// Lighting activation creates one persistent ring per visible WoD fixture.
-controls.lighting.tools.select.onChange({}, true);
-await new Promise(resolve => setImmediate(resolve));
-const locators = () => document.body.children.filter(e => e.className === 'wod-light-continuous-locator');
-assert.equal(locators().length, 2);
-assert.equal(locators().every(e => e.dataset.lightId !== legacy.id), true);
-const originalMarkers = locators().slice();
-assert.equal(typeof controls.lighting.onChange, 'function');
-assert.equal(typeof controls.lighting.onToolChange, 'function');
-controls.lighting.onChange({}, true);
-controls.lighting.onToolChange({}, {name:'select'}, true);
-await new Promise(resolve => setImmediate(resolve));
-assert.deepEqual(locators(), originalMarkers); // No duplicate nodes or restarted pulses.
-controls.lighting.onToolChange({}, {name:'create'}, true);
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(locators().length, 2); // Other tools under Lighting keep pulsing.
-// Refreshes follow canvas pan, document moves, new lights and deletion.
-const moving = subwayScene.lights.contents[0];
-moving.x = 480;
-events.get('updateAmbientLight')();
-assert.equal(locators().find(e => e.dataset.lightId === moving.id).style.left, '480px');
-canvas.isOffscreen = ({x}) => x > 200;
-events.get('canvasPan')();
-assert.equal(locators().length, 1);
-canvas.isOffscreen = () => false;
-events.get('canvasPan')();
-assert.equal(locators().length, 2);
-const added = (await subwayScene.createEmbeddedDocuments('AmbientLight', [{
-  name:'New Office Light',x:175,y:235,flags:{'wod-light':{presetId:'office-day'}}
-}]))[0];
-events.get('createAmbientLight')();
-assert.equal(locators().length, 3);
-subwayScene.lights.contents.splice(subwayScene.lights.contents.findIndex(l => l.id === added.id),1);
-events.get('deleteAmbientLight')();
-assert.equal(locators().length, 2);
-// Switching controls removes every ring and temporary flash immediately.
-controls.lighting.onChange({}, false);
-assert.equal(locators().length, 0);
-assert.equal(document.body.children.some(e => e.className === 'wod-light-pulse'), false);
-controls.lighting.onChange({}, true);
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(locators().length, 2);
-// Rapid activate/deactivate/reactivate in one frame must not lose the locator.
-controls.lighting.onChange({}, true);
-controls.lighting.onChange({}, false);
-controls.lighting.onChange({}, true);
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(locators().length, 2);
-// Core layer lifecycle hooks cover shortcuts or other modules switching layers.
-events.get('activateCanvasLayer')({name:'TokensLayer'});
-assert.equal(locators().length, 0);
-events.get('activateCanvasLayer')(canvas.lighting);
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(locators().length, 2);
-events.get('deactivateLightingLayer')();
-assert.equal(locators().length, 0);
-events.get('activateCanvasLayer')(canvas.lighting);
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(locators().length, 2);
-// A stale frame scheduled before scene teardown must never re-create markers.
-controls.lighting.onChange({}, true);
-events.get('canvasTearDown')();
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(locators().length, 0);
-events.get('activateCanvasLayer')(canvas.lighting);
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(locators().length, 2);
-// Hover and selection name overlays must be readable and must not cover native controls.
-const hoverTarget = subwayScene.lights.contents[1];
-assert.equal(finder.onCanvasPointerMove({target:{closest: () => true},clientX:90,clientY:120}), undefined);
-let liveLabel = document.body.children.find(e => e.className === 'wod-light-live-label');
-assert.ok(liveLabel);
-assert.equal(liveLabel.children[0].textContent, hoverTarget.name);
-assert.match(liveLabel.children[1].textContent, /Light source/);
-finder.onCanvasPointerMove({target:{closest: () => false},clientX:0,clientY:0});
-assert.equal(document.body.children.some(e => e.className === 'wod-light-live-label'), false);
-finder.onLightControl({document: hoverTarget}, true);
-liveLabel = document.body.children.find(e => e.className === 'wod-light-live-label');
-assert.ok(liveLabel);
-assert.match(liveLabel.children[1].textContent, /Selected/);
-finder.onLightControl({document: hoverTarget}, false);
-assert.equal(document.body.children.some(e => e.className === 'wod-light-live-label'), false);
-finder.onLightHover({document: hoverTarget}, true);
-assert.equal(document.body.children.some(e => e.className === 'wod-light-live-label'), true);
-finder.onLightHover({document: hoverTarget}, false);
-assert.equal(document.body.children.some(e => e.className === 'wod-light-live-label'), false);
-const css = readFileSync(resolve(import.meta.dirname, '../wod-light/styles/wod-light.css'), 'utf-8');
-assert.match(css, /width: 68px/);
-assert.match(css, /\.wod-light-live-label/);
-assert.match(css, /wod-light-continuous-ring/);
-assert.match(css, /animation: wod-light-breathe 2\.8s ease-in-out infinite/);
-assert.match(css, /prefers-reduced-motion/);
-assert.equal(finder.showLightFinder(), true); // Leaving Lighting closed the old finder.
-const currentFinderPanel = document.body.children.find(e => e.className === 'wod-light-finder');
-const currentMarkerLayer = document.body.children.find(e => e.className === 'wod-light-map-pins');
-const filterInput = currentFinderPanel.children.find(e => e.className === 'wod-light-finder-search');
-filterInput.value = 'office';
-filterInput.listeners.input();
-const shown = currentMarkerLayer.children.filter(e => !e.hidden);
-assert.equal(shown.length, 1);
-const target = subwayScene.lights.contents[1];
-assert.equal(await finder.locateWoDLight(target.id), true);
-assert.equal(panCalls.at(-1).x, 90);
-assert.ok(selectedLightIds.includes(target.id));
-assert.equal(document.body.children.some(e => e.className === 'wod-light-finder'), false);
-assert.equal(finder.showLightFinder(), true);
-assert.equal(finder.showLightFinder(), false); // click tool again closes it
-finder.closeLightFinder();
-game.user.isGM = false;
-const playerControls = { lighting: { name:'lighting', tools:{} } };
-finder.registerLightFinderTool(playerControls);
-assert.equal(playerControls.lighting.tools.wodLightFind, undefined);
-assert.equal(finder.showLightFinder(), false);
-assert.equal(finder.refreshContinuousLocators(), 0);
-assert.equal(locators().length, 0);
-game.user.isGM = true;
-events.get('activateCanvasLayer')(canvas.lighting);
-await new Promise(resolve => setImmediate(resolve));
-assert.equal(locators().length, 2);
-assert.equal(finder.pulseWoDLightsOnViewedLevel() >= 2, true);
-canvas.isOffscreen = () => true;
-assert.equal(finder.pulseWoDLightsOnViewedLevel(), 0);
-assert.match(infos.at(-1), /no fixtures visible/i);
-canvas.isOffscreen = () => false;
-game.user.isGM = true;
-events.get('canvasTearDown')();
-assert.equal(document.body.children.some(e => ['wod-light-pulse','wod-light-live-label','wod-light-continuous-locator'].includes(e.className)), false);
-// Real GM ready lifecycle: preserve multiple ready callbacks, offer missing once,
-// install additively, and publish the library controls on game.wodLight.
-items.splice(items.findIndex(i => i.getFlag('wod-light','presetId') === 'wall-sconce'), 1);
-stored['wod-light.catalogPromptedFor'] = '';
-nextCatalogConfirmation = true;
-const beforeReadyPrompts = catalogPrompts.length;
-await events.get('once:ready')();
-assert.equal(main.countMissingPresets(), 0);
-assert.equal(catalogPrompts.length, beforeReadyPrompts + 1);
-assert.equal(game.wodLight.presets.length, 51);
-assert.equal(typeof game.wodLight.installPresets, 'function');
-assert.equal(typeof game.wodLight.countMissingPresets, 'function');
-console.log('PASS: 51 presets (24 new), additive opt-in catalog upgrade, 51 SVG icons, portable 3-o-clock light origin and outward beam rotation, persistent GM-only Lighting locators, movement/viewport and add/remove sync, control/layer shutdown, labels, finder, Level guard, placement, token HUD and restore.');
+// An existing WoD20 world gets a one-time offer that adds only missing Items.
+await newWorld('worldofdarkness');
+assert.equal(await main.installPresets(),51);
+items.splice(27);const savedIds=items.map(i=>i.id);const savedImages=items.map(i=>i.img);
+assert.equal(main.countMissingPresets(),24);
+assert.equal(await main.offerMissingPresetsOnUpgrade(),true);
+assert.equal(items.length,51);assert.deepEqual(items.slice(0,27).map(i=>i.id),savedIds);
+assert.deepEqual(items.slice(0,27).map(i=>i.img),savedImages);
+assert.equal(await main.offerMissingPresetsOnUpgrade(),false);
+await newWorld('unknown-system');
+assert.equal(await main.installPresets(),0);
+assert.equal(folders.length,0);
+assert.match(warnings.at(-1),/not have a supported native/);
+game.user.isGM=false;
+assert.equal(await main.installPresets(),0);
+console.log('PASS: 51 preserved IDs/SVGs, three native Item types, opt-in add-only upgrade, scene drops, Token HUD light/restore, PF2e rule guard, system mismatch and permissions (mocked).');

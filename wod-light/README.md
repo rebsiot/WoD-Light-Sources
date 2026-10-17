@@ -1,164 +1,48 @@
-# WoD Light v0.1.7
+# WoD Light
 
-A small **private St. Louis v2 campaign module** for Foundry VTT v14 + World of Darkness 20th (`worldofdarkness`, approximately 7.3.x). No Torch dependency, GM panel, custom lighting engine or battery bookkeeping.
+A small Foundry VTT v14 lighting utility with 51 recognizable, ready-to-place light presets. GMs place ordinary Ambient Lights on a scene; players can switch on a carried flashlight, lantern, torch or another portable light using the Token HUD. It uses Foundry's lighting engine, not an alternate lighting system.
 
+## Two quick examples
 
+**GM — light a room:** Open **Items → WoD Light → Indoor**, drag **Office Fluorescent – Daylight** onto the map. The light is selected automatically. While **Lighting** controls are active, placed WoD Light sources pulse so you can find and move them later. The **Find WoD Lights** button opens a searchable locator.
 
-## Expanded modern lighting library — v0.1.7
+**Player — use a flashlight:** The GM adds **WoD Light → Portable → Flashlight** to your character's inventory. Right-click the token and use its **lightbulb** HUD button to turn the beam on or off. Right-click the button to choose among several carried sources. Turning off restores that token's previous light settings.
 
-**51 total presets (27 existing + 24 new)**, still organized in the same four Items folders. These additions cover common TC Modern scene types without requiring custom lighting for each map:
+## Compatibility
 
-| Folder | New sources |
-|---|---|
-| **Indoor (+11)** | Wall Sconce, Recessed Ceiling LED, Pendant / Bar Light, TV / Monitor Glow, Vending / Arcade Cabinet, Medical Examination Lamp, Display Case Spotlight, Subway Platform Strip, Parking Garage Fixture, Train / Bus Ceiling Strip, Warehouse High-Bay LED |
-| **Outdoor (+5)** | Portable Worksite Flood, Bollard / Pathway Light, Illuminated Storefront Sign, Gas Station Canopy Light, Tower Searchlight |
-| **Effects (+6)** | Stage Spotlight, Dance Floor Strobe, Neon Sign – Blue, Emergency Blue Flash, Amber Hazard Beacon, Campfire / Fire Pit |
-| **Portable (+2)** | Handheld Searchlight (directional) and Emergency Road Flare (circular, flickering) |
+- **Foundry VTT:** version 14; other versions are not certified.
+- **World of Darkness 20th:** `worldofdarkness`, preserving its original `Item` presets.
+- **Pathfinder Second Edition:** `pf2e`, using native **equipment** Items.
+- **Dungeons & Dragons Fifth Edition:** `dnd5e`, using native **loot** Items for both the 2014 and 2024 rule choices (often called 5.5e).
+- **Unsupported systems:** no automatic Item-library creation; do not expect the inventory HUD to work. Core Foundry lighting APIs and the module's `placePresetOnScene` GM API remain system-independent.
 
-**How existing worlds get the new presets:** After updating, the GM is asked **once** whether to add the missing light Items (normally 24). Accept to create only the missing new Items; existing Items, IDs, custom images, Actors, placed lights, and scene settings are never overwritten. If you choose **Not Now**, the module will not prompt on every reload; run `game.wodLight.installPresets()` from the GM browser console whenever you're ready. A brand-new installation instead offers all 51 presets at once. No automatic mass import.
+**Compatibility status:** Source and mocked APIs were checked, but live Foundry v14 playtests with these systems have not yet been recorded. In PF2e, if another effect already uses a `TokenLight` rule element, WoD Light refuses to switch on a conflicting carried light instead of overwriting that automation. Avoid simultaneous operation with other token-light modules until tested.
 
-The 24 new sources use **individual, readable SVG pictograms** in the same high-contrast visual style as the original 27. No creator map/Patreon artwork is bundled. All lights remain regular Foundry Ambient Light placement templates; only the ten **Portable** Items work with the Token HUD. The Outdoor **Portable Worksite Flood** is a movable scene fixture, **not** an Actor inventory toggle.
+## Install and first use
 
-See [CATALOG.md](CATALOG.md) for the complete 51-preset list with bright/dim radii, spread and category. Ranges are gaming approximations in scene units (typically feet); they are not calibrated lumens.
+1. Back up the world, especially if it already contains WoD Light Items or modified token lighting.
+2. In **Foundry Setup → Add-on Modules → Install Module**, enter the manifest URL:
 
-## Portable hand-held light positions in v0.1.6
+   `https://github.com/rebsiot/WoD-Light-Sources/releases/latest/download/module.json`
 
-- **All ten active portable Items** emit from approximately the **3 o'clock / right edge of the token**, instead of the center. This includes Flashlight, Tactical Flashlight, Headlamp, Phone Light, Camping Lantern, Candle, Glow Stick, Hand Torch, Handheld Searchlight, and Emergency Road Flare.
-- **Directional light cones** begin on the right edge and face outward. Rotating the token rotates both the offset and the beam. **360-degree lights** still spread in all directions, but from the right-hand side. At token rotation 0, the offset is east/right; at 90 degrees it is south/below.
-- Only applies when an active portable Item was enabled via the WoD Light Token HUD. Normal token illumination, other modules' lights when our portable Item is inactive, scene Ambient Lights, vision origins and prototype tokens are unchanged.
-- Uses Foundry v14's TokenDocument `getLightOrigin()` to move the native light source. For cone orientation it adapts the v14 protected Token `_getLightSourceData()` output; this integration **must be verified in the live campaign**, especially on rotation and near walls. It creates no extra Scene documents or tokens.
-- Turn off the HUD light to restore the prior token light config and the ordinary light origin. No Item updates or migration required.
+3. Enable **WoD Light** in the intended world; restart/refresh the client after updating.
+4. As GM, accept **Create Light Items** to add the 51 starter Items in four folders: Indoor, Outdoor, Portable, Effects.
+5. Drag a preset from Items to the map. For portable lights, give its Item to a character and use the Token HUD button.
 
-## Persistent locator behavior in v0.1.5
+**Existing worlds:** The one-time upgrade prompt only offers *missing* presets. It preserves existing Items, IDs, custom images, Actors, and placed lights. The module does not convert old WoD20 Items into another system's Item type or move any world content. Declining is safe; the GM can later run `game.wodLight.installPresets()` in the browser console. If you upgrade from v0.1.7 with all 51 presets, there are no new presets to import.
 
-- **Open Lighting:** every visible WoD Light fixture gets a continuously pulsing, amber 68px locator until you leave the **Lighting** controls. Selecting or using another Lighting subtool does not interrupt the animation. No need to reopen Find WoD Lights to keep the fixtures visible.
-- **Hover near a light's native control:** a readable name appears just above it. **Select the light:** its name and a short Move/Delete hint remain visible. These labels are never interactive or persistent scene objects.
-- The **Find WoD Lights** searchable list and map markers remain available for harder-to-find fixtures and previous placements. No additional GM dashboard.
-- Scene Level filtering applies only when the scene actually has Levels. Ordinary scenes behave normally, with no Level setup required.
-- These effects are visible to the GM's own client only; no player UI changes, world migrations or extra Tile/Token objects.
+**Manual install:** Download the release's `wod-light.zip`, stop Foundry, and extract its contents into `Data/modules/wod-light/` (or `Z:\Data\modules\wod-light\` for the St. Louis Samba share). Verify `module.json` is directly inside that folder—not inside another nested `wod-light` folder. The GitHub repository stores its installable source inside [`wod-light/`](https://github.com/rebsiot/WoD-Light-Sources/tree/main/wod-light); the *release ZIP* contains that folder's **contents** at its own root. Enable the module after starting Foundry again.
 
-## Install with a manifest URL
+## Notes
 
-In Foundry Setup, choose **Add-on Modules → Install Module**, paste:
+- Preset distances are game-scale approximations in the scene's distance units, not physical lumen conversions. The catalog was tuned around scenes using feet. Check the scene grid/distance scale in other systems; edit native lights as needed.
+- Only the **ten Portable** presets enable the inventory Token HUD. An Outdoor **Portable Worksite Flood** is a movable *scene fixture*, not an inventory switch.
+- Active handheld lights emit near the token's three-o'clock edge, turning with token rotation. This uses a Foundry v14 protected source method for cone orientation; actual rendering and wall interaction require live confirmation.
+- WoD Light's GM-only fixture locator pulses do not create Tiles or modify Scene light records. Foundry's native Light layer remains the editing interface.
+- Module disabling or reverting source **does not delete** previously created Item or Ambient Light world documents. Revert the code to the previous release if needed, and restore the world backup only when you need a data rollback.
 
-`https://github.com/rebsiot/WoD-Light-Sources/releases/latest/download/module.json`
+For details see [all 51 presets](CATALOG.md), [change history](CHANGELOG.md), [test report](TEST_REPORT.md), and the [GitHub releases](https://github.com/rebsiot/WoD-Light-Sources/releases). Report bugs through [GitHub Issues](https://github.com/rebsiot/WoD-Light-Sources/issues), including Foundry/system/module versions and the reproduction steps.
 
-and install. This GitHub Release manifest points to the matching installable ZIP. Then enable **WoD Light** in the world.
+## Credits and permissions
 
-## Manual installation
-
-1. Back up your Foundry world. Stop the Foundry server before updating files.
-2. Extract the ZIP **contents** into **`Z:\Data\modules\wod-light\`** (Ubuntu Foundry user-data root is mapped as `Z:`). The manifest must be immediately at `Z:\Data\modules\wod-light\module.json`; don't nest a second `wod-light` folder.
-3. Restart Foundry; enable **WoD Light** in the desired world; refresh the browser.
-4. The first GM who opens the world gets a **Create Light Items** prompt. Accept it to create the 51 presets in a `WoD Light` folder with **Indoor, Outdoor, Portable, Effects** child folders. No existing Items are modified.
-
-## GM: place a scene light
-
-Open the **Items** directory, expand `WoD Light`, and drag a preset Item onto the canvas. The module creates a **normal Ambient Light** at the dropped position, on the currently viewed **Level** in Foundry v14.
-
-**After placing a light, Foundry's Lighting layer opens, the new light is selected, and a large amber pulse briefly names it. While Lighting remains open, a gentle ring keeps pulsing at each visible WoD Light fixture.** Drag the selected control to move it, press **Delete** to remove just that light, or double-click to edit it. This uses Foundry's native controls, not a separate management panel. The Item is a placement template, not a tile or token.
-
-**Finding an older light:** Activate the native **Lighting** controls and click **Find WoD Lights** (magnifying glass icon). A small, searchable list of **WoD Light-created** fixtures appears; **large numbered amber markers** temporarily identify their positions on the map, including those from older versions. Click a row/marker to pan, select and pulse that light. Close the list to clear markers. Markers never exist as Tiles or world documents, and they are visible only to the GM using the tool. The finder prioritizes the last light placed in this client.
-
-Lights assigned to another Foundry Level are listed by name with an **Other Level** indication; switch to that Level first and select the light again. Lights from v0.1.0 may say **Unassigned Level**. The native **Lighting > Placeables** sidebar remains an alternative for all scene lights. **Never use Clear Lights** unless you mean to erase every Ambient Light on the scene.
-
-**Important for v0.1.0 placements:** Earlier dropped lights were created without explicit Level/elevation information. Existing lights are **never relocated automatically** by the update. Find them using the Placeables tab (including other Levels), adjust the correct Level in native Light configuration or remove and replace individually, after checking which light it is.
-
-**Item artwork:** The module includes **51 custom, readable SVG pictograms**. Existing world library Items with the module's original default `light.svg` / `torch.svg` images receive the corresponding new image automatically on the GM's first launch after upgrade. An Item with customized art is **not overwritten**. Actor-embedded equipment is **not altered**; transfer a fresh portable Item from the library if you want its new icon on the character sheet. No Item names, descriptions, ratings or IDs are modified.
-
-If you dismissed the first-run prompt, open the browser console as GM and run `game.wodLight.installPresets()`. Running it again only adds presets whose IDs are absent; it does not overwrite customized Items. To retry only the safe stock icon update: `game.wodLight.refreshPresetIcons()`.
-
-## Player: turn on a carried light
-
-The GM drags an Item from `WoD Light > Portable` onto a character's Actor sheet. The character then has a **lightbulb button on the upper-left side of their Token HUD** (right click the token to show the HUD):
-
-- **Left click:** switch carried light on/off.
-- **Right click:** choose a different carried light if the character has more than one.
-- **Flashlight, tactical flashlight, headlamp, phone and handheld searchlight:** a right-edge, outward-facing directional beam that turns with the token.
-- **Lantern, candle, glow stick, torch and road flare:** 360-degree light emitted from the right edge of the token.
-
-Only the token's owner or the GM can operate the button. No equipment Item => no button. The module snapshots and restores that *specific token's* prior light settings instead of editing prototype tokens.
-
-## Notes / limitations
-
-- When working on a v14 multi-Level Scene, new Ambient Lights are assigned to the currently viewed Level and its bottom elevation. This needs live verification in the subway scene.
-- New light selection depends on the native Lighting layer drawing the created light; if selection is unavailable, use **Find WoD Lights** or the native Placeables tab. Persistent locators follow canvas pans and light document updates, and disappear when leaving Lighting; they never block selection. Finder UI depends on Foundry v14 APIs and remains live-unverified.
-- Preset distances use the Scene's configured distance units; the numbers assume scenes measured in feet. They are game-friendly approximations, **not measured bulb lumens**. Adjust individual native Ambient Lights as needed.
-- Item drop uses the Foundry `dropCanvasData` hook. It is designed for **world Items created in the WoD Light folder**. Compendium-only or nested third-party drag flows have not been confirmed.
-- Stationary light placement is GM-only. Players can toggle a light only when carrying its tagged equipment Item.
-- Foundry v14 + live WoD20 + multiplayer testing **not yet performed**; this package has static and simulated tests only.
-- Portable edge emission uses v14 `getLightOrigin()` plus a guarded adapter for the Token emitted light data. Confirm real light cones face outward on 0/90 degree rotation and that wall occlusion behaves as intended. Other modules overriding token source methods may conflict.
-- Potential interaction with other modules that directly replace Token light settings (Torch and similar) is not tested. Prefer disabling those overlapping lighting controls in the campaign.
-- Deleting an Item from an Actor does not forcibly turn off a light that was previously activated; turn it off first. This will be revisited only if necessary.
-- Preset creation is additive. The only automatic upgrade edit is the `img` field of identifiable *world* preset Items still using the original generic stock icon; customized artwork and all Actor Items remain untouched. Disabling the module does not delete Items or Ambient Lights it has created.
-
-## Rollback
-
-1. Back up your world first. Stop Foundry and restore the previous `wod-light` module folder, or disable/remove it if this is the first install.
-2. World Items and Scene Ambient Lights made by the module **remain in the world** after disabling; remove those separately only if you intend to.
-3. For a world-data rollback use a matching world backup; replacing the ZIP never restores documents.
-
-## Technical
-
-- Module ID: `wod-light`; version: `0.1.7`.
-- WoD20 generic equipment type: `Item`.
-- Preset Item flag: `flags.wod-light.presetId`.
-- Token flags: `flags.wod-light.activeId` and `flags.wod-light.previousLight`.
-- Created Ambient Light flag: `flags.wod-light.presetId`.
-- No modified system files or external dependencies.
-
-## Release notes
-
-### 0.1.7 — 2026-10-17
-- Expanded the practical modern-scene lighting library from 27 to **51** presets, spanning residential, retail, hospitals, subway/transit, parking garages, warehouses, industrial and construction settings, clubs and security/emergency scenes.
-- Added **24 original, SVG pictograms** readable at standard Foundry Item size (51 total); original assets untouched.
-- Existing installed worlds receive a **one-time, opt-in** offer to add only missing Items. Decline without nagging, or add them later with `game.wodLight.installPresets()`. Existing customizations and all other world documents are preserved.
-- Added Handheld Searchlight and Emergency Road Flare as Token HUD portable lights, inheriting 3-o'clock edge emission.
-- Added a [complete catalog](CATALOG.md) of defaults; no new GM panel, folder categories, lighting engine, or dependencies.
-- Local Node mock smoke tests and SVG raster/XML checks passed; **live Foundry testing pending**.
-
-### 0.1.6 — 2026-10-17
-- Offset active portable light sources to the token's 3 o'clock edge, with directional beams pointed outward and rotating with the token. Original light origins are restored when disabled.
-- No duplicate Ambient Lights or Items, Actor changes, new permissions, or migrations. Existing HUD and GM lighting workflows preserved.
-- Native v14 light-origin API and protected emitted-light data adapter mock-tested; real v14 directional rendering and wall occlusion still require live confirmation.
-
-### 0.1.5 — 2026-10-17
-- Continuously pulse every visible WoD Light fixture while the GM is using Foundry's **Lighting** controls; stop and clean up immediately when switching tools or scenes.
-- Markers stay at the light's position through panning, updating, creation, deletion and native layer activation changes. One noninteractive CSS-animated overlay per visible fixture; no repeated JS polling or world document modifications.
-- Preserve the brief named placement pulse, hover/selection labels, Find WoD Lights list, all 27 custom SVG Item icons, and token lighting controls.
-- Tests: Node mocked Foundry lifecycle, visibility, movement, add/remove and rapid control changes passed; live Foundry v14 pending.
-
-### 0.1.4 — 2026-10-17
-- Expanded the v0.1.3 local Select-tool pulse feature to reliably trigger from both Lighting layer activation and native Select tool activation using Foundry v14 control callbacks.
-- Enlarged amber rings to 68px and increased visibility to approximately three seconds.
-- Added GM-only, noninteractive fixture name labels on hover and selected-light hint text, with pointer proximity fallback for v14 variations.
-- Works on normal single-level scenes and retains existing Level filtering when applicable.
-- Tests: Node mock/syntax passed; live Foundry v14 pending.
-
-### 0.1.3 — 2026-10-17 (local interim package; included in v0.1.4)
-- Added automatic amber pulses for visible WoD Light fixtures when the GM activates the native **Lighting > Select** tool. This helps locate placed lights without opening the finder first.
-- Keeps the existing **Find WoD Lights** button for list-based locating and selection.
-- Tests: updated Node smoke test passed; live Foundry verification still pending.
-
-### 0.1.2 — 2026-10-17
-- Replaced original generic icon art with 27 custom vector pictograms, designed and reviewed at 24px/64px.
-- Automatically refreshes **only** stock WoD Light world Item images; preserves customized images and Actor inventory Items.
-- Added GM-only **Find WoD Lights** tool under Foundry v14's native Lighting controls: searchable fixture list, temporary high-contrast map pins and direct native light selection/pan.
-- Newly dropped and located lights receive a high-contrast local pulse/label (no multiplayer ping).
-- No changes to existing Scene lights, player/token data, or lighting presets.
-- Tests: Node simulation, syntax, icon inventory and SVG/XML validation passed; live Foundry v14 pending.
-
-### 0.1.1 — 2026-10-17
-- Fixed new light fixtures being hard to locate immediately after a drop: activate the native Lighting layer and select the newly created Ambient Light.
-- New lights receive the currently viewed Foundry v14 Level and bottom elevation when a Level is available.
-- Added instructions for locating or removing previously placed lights via the native Placeables tab, including all-Level search for legacy lights.
-- Preserves existing Ambient Lights and all player/Token lighting settings; no world migration.
-- Tests: Node syntax and simulated multi-Level scene selection/drop passed; live Foundry v14 not yet verified.
-
-### 0.1.0 — 2026-10-16
-- Added 27 basic indoor, outdoor, portable and atmospheric light presets.
-- Added opt-in, additive Item-folder initialization.
-- Added drag-to-map native Ambient Light creation from tagged world Items.
-- Added inventory-aware left-side Token HUD toggle and right-click source chooser.
-- Added restoration of pre-existing token lighting when switched off.
-- Tests: local syntax/mock only. Live Foundry v14: **not tested**.
+SVG preset icons were authored for this project's light catalog as standalone vector shapes; no paid TC Modern map artwork, Patreon assets or user data are distributed. This repository has **no explicit open-source license** at present; public visibility alone does not grant redistribution rights. The maintainer must choose and review appropriate software licensing before a public listing.

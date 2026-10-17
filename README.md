@@ -1,20 +1,39 @@
-# WoD-Light-Sources
-A folder of items to import into WoD worlds with pre-configured lights
+# WoD Light
 
-## WoD Light v0.1.7
+**Place lights on a Foundry scene; switch on a carried light from the Token HUD.** WoD Light provides 51 practical, illustrated lighting presets without replacing Foundry's lighting engine.
 
-This repository contains the complete source for a small campaign-focused Foundry VTT v14 module for the World of Darkness 20th system.
+**GM example:** In **Items → WoD Light → Indoor**, drag an office fluorescent preset onto a scene. Foundry creates an editable Ambient Light. Activate **Lighting** to see persistent locator pulses for the module's lights, or use **Find WoD Lights** to search for a fixture.
 
-- [`wod-light/`](wod-light/) — installable module directory, including `module.json`, lighting presets, Token HUD controls, and [instructions](wod-light/README.md).
-- [`tests/smoke.mjs`](tests/smoke.mjs) — Node 22 simulated-Foundry smoke test; run from repository root with `node tests/smoke.mjs`.
-- [`16-WOD-LIGHT-HANDOFF.md`](16-WOD-LIGHT-HANDOFF.md) — project decisions, data contracts, and pending live tests.
+**Player example:** Carry a **Flashlight** Item. On the token, right-click to open its HUD and use the lightbulb to turn the beam on or off. The token's earlier light setting is restored when you turn the carried light off.
 
-**Install:** Download this repository and copy its internal `wod-light` folder to `Z:\\Data\\modules\\wod-light` (with `module.json` immediately inside). Restart Foundry, enable WoD Light in the intended world, and accept the GM prompt to create 27 preset Items. Back up the world before installing. See the [module README](wod-light/README.md) for usage and rollback.
+## Requirements and supported game systems
 
-**Status:** v0.1.7 adds 24 modern-scene light presets, 24 readable SVG icons, and an opt-in existing-world catalog upgrade. Syntax/mock tests passed. Live Foundry v14 / WoD20 behavior has not yet been verified. This is a lightweight campaign utility, not a replacement for Foundry's native lighting system.
+Foundry VTT **v14** and one of these game systems:
 
-**v0.1.7 interaction:** In Foundry's Lighting controls, WoD Light fixtures remain visibly pulsing until the GM leaves Lighting. Hover or select a fixture to see its name and editing hint. Ordinary scenes do not require Levels.
+- `worldofdarkness`: WoD20 (native `Item` type)
+- `pf2e`: Pathfinder Second Edition (native `equipment` type)
+- `dnd5e`: D&D Fifth Edition, 2014 or 2024 rules / commonly called 5.5e (native `loot` type)
 
-**Portable light origin in v0.1.7:** Active carried lights now emit near the token's local right edge and rotate with it. Directional cones face outward; circular lamps and candles remain omnidirectional. No new scene lights or data migrations. Live Foundry rendering still needs confirmation.
+The **core lighting code is system-independent**, but inventory presets and Token HUD have adapters only for these three systems. Other systems cannot automatically install the Item library. The new adapters have passed source/mock tests, **not live system-client tests**; treat this version as a test build. PF2e `TokenLight` rules may override token lighting, so the module refuses a conflicting handheld toggle.
 
-**v0.1.7:** 51 presets total (27 original, 24 new), including transit, medical, industrial, retail, nightlife and emergency scenes. Existing worlds receive a one-time offer to add only the missing Items; the user can decline and later run `game.wodLight.installPresets()`. [Full catalog](wod-light/CATALOG.md). No world Scene or Actor migration.
+## Install
+
+1. Back up the world, then go to **Foundry Setup → Add-on Modules → Install Module**.
+2. Paste the manifest: `https://github.com/rebsiot/WoD-Light-Sources/releases/latest/download/module.json`.
+3. Install, enable **WoD Light** in the intended world, and refresh the browser after updating.
+4. As GM, accept the optional prompt to create the **51 light presets** in four Item folders.
+5. Drag scene presets onto the map; give portable presets to characters to use the Token HUD.
+
+**Existing worlds:** Upgrades offer **only missing presets**, once, after GM confirmation. Existing Item IDs, custom images, Actors and placed lights are preserved. A GM who declines can add missing presets later with `game.wodLight.installPresets()`.
+
+**ZIP layout:** This repository holds the installable source under [`wod-light/`](wod-light/), **not** at its root. The published [release ZIP](https://github.com/rebsiot/WoD-Light-Sources/releases) contains `module.json` at the ZIP root. For manual installation extract the ZIP contents into Foundry's `Data/modules/wod-light/` after stopping the server. Do not create an extra nested `wod-light` folder.
+
+## Documentation, status and credits
+
+- [Complete 51-light catalog](wod-light/CATALOG.md)
+- [User guide and limitations](wod-light/README.md)
+- [Release notes](wod-light/RELEASE_NOTES.md) and [historical changelog](wod-light/CHANGELOG.md)
+- [Automated test report](wod-light/TEST_REPORT.md)
+- [GitHub releases](https://github.com/rebsiot/WoD-Light-Sources/releases) · [Report an issue](https://github.com/rebsiot/WoD-Light-Sources/issues)
+
+The vector icons are custom project-generated artwork. No TC Modern creator maps, subscriber assets or player data are included. **No explicit open-source license has been granted** for this repository; discuss redistribution terms with the maintainer. Live Foundry/GM/player testing is required before general compatibility or stability claims.
