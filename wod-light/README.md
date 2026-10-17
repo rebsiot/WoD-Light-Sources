@@ -1,6 +1,16 @@
-# WoD Light v0.1.2
+# WoD Light v0.1.4
 
 A small **private St. Louis v2 campaign module** for Foundry VTT v14 + World of Darkness 20th (`worldofdarkness`, approximately 7.3.x). No Torch dependency, GM panel, custom lighting engine or battery bookkeeping.
+
+
+
+## Improved locator behavior in v0.1.4
+
+- **Open Lighting / choose Select:** visible WoD Light fixtures briefly pulse with a large, high-contrast amber ring (68px; approximately 3 seconds). Works when switching to Lighting from another layer **and** when choosing Select within Lighting.
+- **Hover near a light's native control:** a readable name appears just above it. **Select the light:** its name and a short Move/Delete hint remain visible. These labels are never interactive or persistent scene objects.
+- The **Find WoD Lights** searchable list and map markers remain available for harder-to-find fixtures and previous placements. No additional GM dashboard.
+- Scene Level filtering applies only when the scene actually has Levels. Ordinary scenes behave normally, with no Level setup required.
+- These effects are visible to the GM's own client only; no player UI changes, world migrations or extra Tile/Token objects.
 
 ## Install with a manifest URL
 
@@ -13,7 +23,7 @@ and install. This GitHub Release manifest points to the matching installable ZIP
 ## Manual installation
 
 1. Back up your Foundry world. Stop the Foundry server before updating files.
-2. Extract the whole `wod-light` folder into **`Z:\Data\modules\`** (Ubuntu Foundry user-data root is mapped as `Z:`). The manifest must be at `Z:\Data\modules\wod-light\module.json`.
+2. Extract the ZIP **contents** into **`Z:\Data\modules\wod-light\`** (Ubuntu Foundry user-data root is mapped as `Z:`). The manifest must be immediately at `Z:\Data\modules\wod-light\module.json`; don't nest a second `wod-light` folder.
 3. Restart Foundry; enable **WoD Light** in the desired world; refresh the browser.
 4. The first GM who opens the world gets a **Create Light Items** prompt. Accept it to create a `WoD Light` folder with **Indoor, Outdoor, Portable, Effects** child folders. No existing Items are modified.
 
@@ -21,7 +31,7 @@ and install. This GitHub Release manifest points to the matching installable ZIP
 
 Open the **Items** directory, expand `WoD Light`, and drag a preset Item onto the canvas. The module creates a **normal Ambient Light** at the dropped position, on the currently viewed **Level** in Foundry v14.
 
-**After placing a light, Foundry's Lighting layer opens, the new light is selected, and a large amber local locator pulse names it for two seconds.** Drag the selected control to move it, press **Delete** to remove just that light, or double-click to edit it. This uses Foundry's native controls, not a separate management panel. The Item is a placement template, not a tile or token.
+**After placing a light, Foundry's Lighting layer opens, the new light is selected, and a large amber local locator pulse names it for approximately three seconds.** Drag the selected control to move it, press **Delete** to remove just that light, or double-click to edit it. This uses Foundry's native controls, not a separate management panel. The Item is a placement template, not a tile or token.
 
 **Finding an older light:** Activate the native **Lighting** controls and click **Find WoD Lights** (magnifying glass icon). A small, searchable list of **WoD Light-created** fixtures appears; **large numbered amber markers** temporarily identify their positions on the map, including those from older versions. Click a row/marker to pan, select and pulse that light. Close the list to clear markers. Markers never exist as Tiles or world documents, and they are visible only to the GM using the tool. The finder prioritizes the last light placed in this client.
 
@@ -64,7 +74,7 @@ Only the token's owner or the GM can operate the button. No equipment Item => no
 
 ## Technical
 
-- Module ID: `wod-light`; version: `0.1.2`.
+- Module ID: `wod-light`; version: `0.1.4`.
 - WoD20 generic equipment type: `Item`.
 - Preset Item flag: `flags.wod-light.presetId`.
 - Token flags: `flags.wod-light.activeId` and `flags.wod-light.previousLight`.
@@ -72,6 +82,18 @@ Only the token's owner or the GM can operate the button. No equipment Item => no
 - No modified system files or external dependencies.
 
 ## Release notes
+
+### 0.1.4 — 2026-10-17
+- Expanded the v0.1.3 local Select-tool pulse feature to reliably trigger from both Lighting layer activation and native Select tool activation using Foundry v14 control callbacks.
+- Enlarged amber rings to 68px and increased visibility to approximately three seconds.
+- Added GM-only, noninteractive fixture name labels on hover and selected-light hint text, with pointer proximity fallback for v14 variations.
+- Works on normal single-level scenes and retains existing Level filtering when applicable.
+- Tests: Node mock/syntax passed; live Foundry v14 pending.
+
+### 0.1.3 — 2026-10-17 (local interim package; included in v0.1.4)
+- Added automatic amber pulses for visible WoD Light fixtures when the GM activates the native **Lighting > Select** tool. This helps locate placed lights without opening the finder first.
+- Keeps the existing **Find WoD Lights** button for list-based locating and selection.
+- Tests: updated Node smoke test passed; live Foundry verification still pending.
 
 ### 0.1.2 — 2026-10-17
 - Replaced original generic icon art with 27 custom vector pictograms, designed and reviewed at 24px/64px.

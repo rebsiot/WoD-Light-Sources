@@ -53,3 +53,35 @@
 @media(prefers-reduced-motion:reduce) { .wod-light-pulse-ring {animation:none;} }
 
 .wod-light-finder-row[hidden], .wod-light-map-pin[hidden] { display:none !important; }
+
+/* v0.1.4: larger, longer but non-interactive locator pulses. */
+.wod-light-pulse-ring {
+  width: 68px;
+  height: 68px;
+  border-width: 6px;
+  box-shadow: 0 0 0 4px #17283a, 0 0 25px #ffd08b;
+  animation: wod-light-locate 1.5s ease-out 2 forwards;
+}
+.wod-light-pulse-label { bottom: 78px; font-size: 14px; }
+.wod-light-live-label {
+  position: fixed;
+  z-index: 99;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  max-width: min(320px, 78vw);
+  min-width: 135px;
+  padding: 7px 12px;
+  border: 2px solid #ffcf82;
+  border-radius: 7px;
+  background: #142333f5;
+  box-shadow: 0 5px 20px #000c;
+  color: #fff;
+  text-align: center;
+  overflow-wrap: anywhere;
+  font-family: var(--font-primary, sans-serif);
+}
+.wod-light-live-label strong { display: block; font-size: 14px; line-height: 1.3; font-weight: 750; }
+.wod-light-live-label small { display: block; margin-top: 3px; font-size: 11px; color: #d4dfed; }
+@media (prefers-reduced-motion: reduce) {
+  .wod-light-pulse-ring { animation: none; }
+}

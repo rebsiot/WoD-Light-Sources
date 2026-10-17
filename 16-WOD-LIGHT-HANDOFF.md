@@ -26,7 +26,27 @@
 - Full ZIP for direct install and GitHub release v0.1.2; same module ID `wod-light` and same stable manifest path. Source tests and icon checks passed; **live Foundry v14 scene/player tests are not yet done.**
 - Next test: load Subway, activate Lighting > Find WoD Lights, find and select the existing Office Fluorescent; then drop a new one and check labeled pulse + easy movement.
 
-## v0.1.1 — 2026-10-17 (this conversation)
+## v0.1.4 — 2026-10-17 (this conversation)
+
+- The GM requested a more obvious Lighting tool locator: larger/longer amber pulses, names on hover/selected lights, optional existing Level filtering (ordinary scenes do not use Levels).
+- Updated native v14 callbacks: `SceneControl.onChange(event, active)`, `onToolChange(event, tool, active)`, and `SceneControlTool.onChange(event, active)`. Handles selecting Lighting from another layer as well as choosing Select inside Lighting. Duplicate callback suppression prevents repeated pulses in one action.
+- 68px, ~3-second, noninteractive local overlays; one fixture name label on hover or selection; DOM pointer proximity fallback if hover Hook not emitted. Refresh on pan/update/delete and clean up on canvas tear-down.
+- All changes UI-only. Preserve all 27 SVG icons, Item IDs, Flags, native Ambient Lights, and portable Token HUD. No new world migrations or forced imports.
+- **Source baseline:** latest local v0.1.3 ZIP was available; previous published GitHub release v0.1.2. This version incorporates v0.1.3's local pulse behavior rather than overwriting unrelated modules.
+- **Tests:** Node 22 smoke and syntax passed. Live Foundry v14 still unverified.
+- **First check:** On an ordinary scene, click Lighting and then Select, verify all visible WoD Light fixtures pulse; hover/select one for name and move/delete hint.
+
+## v0.1.3 — 2026-10-17 (this conversation)
+
+- User requested an even easier way to spot placed fixtures: pulse them when choosing the native Foundry **Lighting -> Select** tool.
+- Implemented by wrapping the Lighting control's native `select` tool callback in `getSceneControlButtons`, then pulsing currently visible WoD Light fixtures on the viewed Level using the existing GM-local overlay system.
+- Pulses do not modify world data, do not create persistent markers, and do not affect players.
+- Existing **Find WoD Lights** functionality remains for list-based locating, panning, and selection.
+- Tests: updated Node 22 smoke tests passed, including select-tool pulsing and no-visible-fixtures notification. Live Foundry verification still pending.
+- Module version `0.1.3`.
+
+## v0.1.1 — 2026-10-17
+
 
 - User reported: an Office Fluorescent preset dropped onto the subway Scene but its control was effectively impossible to locate for moving/deleting.
 - Foundry v14 changed Ambient Light markers to small dots. The native Placeables sidebar (Lighting layer) lists/searches the scene lights and supports selection.

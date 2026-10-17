@@ -17,6 +17,7 @@ const placedLights = new Map();
 const selectedLightIds = [];
 const activatedLightTools = [];
 const warnings = [];
+const infos = [];
 const panCalls = [];
 let uid = 0;
 const record = (input) => ({
@@ -42,7 +43,7 @@ globalThis.foundry = {
   utils: { deepClone: structuredClone },
   applications: { api: { DialogV2: { async confirm() { return true; } } } }
 };
-globalThis.ui = { notifications: { info() {}, warn(message) { warnings.push(message); }, error(message) { throw Error(message); } } };
+globalThis.ui = { notifications: { info(message) { infos.push(message); }, warn(message) { warnings.push(message); }, error(message) { throw Error(message); } } };
 globalThis.game = {
   user: { isGM: true },
   items: { filter(cb) { return items.filter(cb); }, get(id) { return items.find(i => i.id === id); } },
@@ -285,6 +286,7 @@ const controls = { lighting: { name: 'lighting', tools: { select: { order: 1 } }
 events.get('getSceneControlButtons')(controls);
 assert.equal(controls.lighting.tools.wodLightFind.button, true);
 assert.equal(controls.lighting.tools.wodLightFind.visible, true);
+assert.equal(typeof controls.lighting.tools.select.onChange, 'function');
 assert.equal(finder.listWoDLights().length, 2);
 canvas.level = { id: 'subway-platform', elevation: { bottom: -20 } };
 const legacy = { id:'older-light', x:900, y:150, name:'Streetlight - Sodium Orange',
@@ -302,6 +304,44 @@ const markerLayer = document.body.children.find(e => e.className === 'wod-light-
 assert.ok(finderPanel && markerLayer);
 assert.equal(markerLayer.children.length, 3);
 assert.equal(markerLayer.children.find(e => e.dataset.lightId === legacy.id).hidden, true);
+controls.lighting.tools.select.onChange({}, true);
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(document.body.children.filter(e => e.className === 'wod-light-pulse').length >= 2, true);
+// v14 fires SceneControl.onChange when switching into the Lighting layer and
+// onToolChange when activating Select within the already-active Lighting layer.
+assert.equal(typeof controls.lighting.onChange, 'function');
+assert.equal(typeof controls.lighting.onToolChange, 'function');
+const pulsesBeforeDuplicate = document.body.children.filter(e => e.className === 'wod-light-pulse').length;
+controls.lighting.onChange({}, true);
+controls.lighting.onToolChange({}, {name:'select'}, true);
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(document.body.children.filter(e => e.className === 'wod-light-pulse').length, pulsesBeforeDuplicate);
+await new Promise(resolve => setTimeout(resolve, 365));
+controls.lighting.onChange({}, true);
+await new Promise(resolve => setImmediate(resolve));
+assert.ok(document.body.children.filter(e => e.className === 'wod-light-pulse').length > pulsesBeforeDuplicate);
+// Hover and selection name overlays must be readable and must not cover native controls.
+const hoverTarget = subwayScene.lights.contents[1];
+assert.equal(finder.onCanvasPointerMove({target:{closest: () => true},clientX:90,clientY:120}), undefined);
+let liveLabel = document.body.children.find(e => e.className === 'wod-light-live-label');
+assert.ok(liveLabel);
+assert.equal(liveLabel.children[0].textContent, hoverTarget.name);
+assert.match(liveLabel.children[1].textContent, /Light source/);
+finder.onCanvasPointerMove({target:{closest: () => false},clientX:0,clientY:0});
+assert.equal(document.body.children.some(e => e.className === 'wod-light-live-label'), false);
+finder.onLightControl({document: hoverTarget}, true);
+liveLabel = document.body.children.find(e => e.className === 'wod-light-live-label');
+assert.ok(liveLabel);
+assert.match(liveLabel.children[1].textContent, /Selected/);
+finder.onLightControl({document: hoverTarget}, false);
+assert.equal(document.body.children.some(e => e.className === 'wod-light-live-label'), false);
+finder.onLightHover({document: hoverTarget}, true);
+assert.equal(document.body.children.some(e => e.className === 'wod-light-live-label'), true);
+finder.onLightHover({document: hoverTarget}, false);
+assert.equal(document.body.children.some(e => e.className === 'wod-light-live-label'), false);
+const css = readFileSync(resolve(import.meta.dirname, '../wod-light/styles/wod-light.css'), 'utf-8');
+assert.match(css, /width: 68px/);
+assert.match(css, /\.wod-light-live-label/);
 const filterInput = finderPanel.children.find(e => e.className === 'wod-light-finder-search');
 filterInput.value = 'office';
 filterInput.listeners.input();
@@ -321,4 +361,12 @@ finder.registerLightFinderTool(playerControls);
 assert.equal(playerControls.lighting.tools.wodLightFind, undefined);
 assert.equal(finder.showLightFinder(), false);
 game.user.isGM = true;
-console.log('PASS: 27 distinct SVGs, targeted icon upgrade, v14 Lighting finder and viewport pins, Level guard, drop/selection, token HUD and restore.');
+assert.equal(finder.pulseWoDLightsOnViewedLevel() >= 2, true);
+canvas.isOffscreen = () => true;
+assert.equal(finder.pulseWoDLightsOnViewedLevel(), 0);
+assert.match(infos.at(-1), /no fixtures visible/i);
+canvas.isOffscreen = () => false;
+game.user.isGM = true;
+events.get('canvasTearDown')();
+assert.equal(document.body.children.some(e => e.className === 'wod-light-pulse' || e.className === 'wod-light-live-label'), false);
+console.log('PASS: 27 SVG icons, v14 Lighting activation/Select pulses, nonblocking hover and selection labels, finder, Level guard, placement, token HUD and restore.');

@@ -1,3 +1,41 @@
+# WoD Light v0.1.4 — 2026-10-17
+
+Lighting locator usability upgrade for Foundry VTT v14 and WoD20. Includes the v0.1.3 local-only select-tool pulse changes in the publicly installable release.
+
+- Selecting Foundry's native **Lighting** control or **Select** tool briefly pulses all currently visible WoD Light-created fixtures (68px amber ring, approximately 3 seconds). No separate management panel.
+- A clear fixture name appears above the light when its native control is hovered. When selected, the name remains with a short drag/Delete hint. Pointer-proximity hover fallback helps where v14 placeable hover events differ.
+- Pulses, labels, and temporary finder markers are local to the GM client and cannot interfere with native light movement or selection.
+- Regular scenes require **no Levels**. Where a scene uses Foundry Levels, the locator filters out lights assigned to another viewed Level; unassigned legacy lights remain eligible.
+- Existing **Find WoD Lights**, 27 readable SVG icons, placement presets, and Token HUD portable-light controls are preserved.
+- No Scene, Token, Actor, or existing Ambient Light migrations; no new Items are added on upgrade.
+
+**Upgrade:** Back up the world, update from the existing stable manifest, restart Foundry/refresh the client. Re-importing Items is not required.
+
+**Test report:** JavaScript syntax, 27 SVG inventory, Node mocked Foundry lighting tool callbacks/hover/selection/pulse/Level tests passed. **Actual Foundry v14 with WoD20 has not been tested in the live world.**
+
+**Recommended live check:** Open the subway, click **Lighting -> Select**, confirm visible WoD lights pulse; hover or select one to see its name, then move it and confirm the label follows canvas changes.
+
+**Rollback:** Revert to v0.1.2 (the previous GitHub release), or disable WoD Light. The v0.1.3 local ZIP was not published to GitHub. Previously upgraded Item images depend on the v0.1.2+ SVG assets; retain these files or restore a matching world backup if downgrading before v0.1.2. Previously created world Items and Ambient Lights remain after disabling.
+
+---
+
+# WoD Light v0.1.3 — 2026-10-17
+
+Usability update for Foundry VTT v14 and WoD20.
+
+- When the GM activates the native **Lighting -> Select** tool, currently visible WoD Light fixtures on the viewed Level pulse briefly in amber.
+- This is a GM-local locator effect only; it does not create world markers or change scene documents.
+- Retains the existing **Find WoD Lights** utility, placement pulse, readable SVG icons, and Token HUD carried-light behavior.
+- Existing fixtures remain untouched; no migrations.
+
+**Upgrade:** Back up your world, replace/update the module, refresh the browser, then switch to the Lighting Select tool on a scene with WoD Light fixtures and confirm they pulse.
+
+**Test results:** Node 22 smoke tests passed. **Live Foundry v14 testing is still pending.**
+
+**Rollback:** Restore the previous module folder. Existing created Items and Ambient Lights remain in the world.
+
+---
+
 # WoD Light v0.1.2 — 2026-10-17
 
 Campaign usability + readable icon update for Foundry v14 / WoD20.

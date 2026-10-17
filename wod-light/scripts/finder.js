@@ -5,7 +5,12 @@ import { PRESET_BY_ID } from "./presets.js";
 const MOD = "wod-light";
 const iconFor = presetId => `modules/${MOD}/assets/icons/${presetId}.svg`;
 let finder = null;
-let pulse = null;
+const activePulses = new Set();
+let hoverLightId = null;
+let selectedLightId = null;
+let activeLabel = null;
+let lastSelectPulse = 0;
+let scheduledSelectPulse = false;
 
 function eligible() { return Boolean(game.user?.isGM && canvas?.scene); }
 function allLights() {
@@ -62,9 +67,120 @@ function positionOf(x, y) {
   return p && Number.isFinite(p.x) && Number.isFinite(p.y) ? p : null;
 }
 
-export function pulseLightPosition(x, y, name = "Light placed") {
+// Labels are informational DOM overlays, not clickable Tiles or light placeables.
+// Keep only one on screen. Native Lighting controls remain unobstructed.
+function lightingSelectActive() {
+  if (!eligible() || canvas?.lighting?.active === false) return false;
+  const controls = ui?.controls;
+  if (controls?.control?.name && controls.control.name !== "lighting") return false;
+  if (controls?.tool?.name && controls.tool.name !== "select") return false;
+  return true;
+}
+
+function eligibleLightById(id) {
+  if (!id) return null;
+  const doc = listWoDLights().find(light => light.id === id);
+  if (!doc || otherLevel(doc) || canvas.isOffscreen?.({ x: doc.x, y: doc.y })) return null;
+  return doc;
+}
+
+function selectedLight() {
+  const controlled = canvas?.lighting?.controlled;
+  const selected = (Array.isArray(controlled) ? controlled : Array.from(controlled ?? []))
+    .find(obj => eligibleLightById(obj?.document?.id ?? obj?.id));
+  return eligibleLightById(selected?.document?.id ?? selected?.id) ?? eligibleLightById(selectedLightId);
+}
+
+export function refreshLightLabel() {
+  const doc = lightingSelectActive() ? (eligibleLightById(hoverLightId) ?? selectedLight()) : null;
+  if (!doc || typeof document === "undefined") {
+    activeLabel?.remove();
+    activeLabel = null;
+    return false;
+  }
+  const p = positionOf(doc.x, doc.y);
+  if (!p) { activeLabel?.remove(); activeLabel = null; return false; }
+  if (!activeLabel) {
+    activeLabel = document.createElement("div");
+    activeLabel.className = "wod-light-live-label";
+    activeLabel.setAttribute("role", "status");
+    activeLabel.append(document.createElement("strong"), document.createElement("small"));
+    document.body.appendChild(activeLabel);
+  }
+  activeLabel.children[0].textContent = doc.name || PRESET_BY_ID[doc.getFlag(MOD, "presetId")]?.name || "Light";
+  activeLabel.children[1].textContent = doc.id === hoverLightId ? "Light source" : "Selected — drag to move · Delete to remove";
+  activeLabel.style.left = `${p.x}px`;
+  activeLabel.style.top = `${p.y - 36}px`;
+  return true;
+}
+
+export function onLightHover(placeable, hovering) {
+  const id = placeable?.document?.id ?? placeable?.id;
+  if (!id) return;
+  if (hovering) hoverLightId = id;
+  else if (hoverLightId === id) hoverLightId = null;
+  refreshLightLabel();
+}
+
+export function onLightControl(placeable, controlled) {
+  const id = placeable?.document?.id ?? placeable?.id;
+  if (!id) return;
+  if (controlled) selectedLightId = id;
+  else if (selectedLightId === id) selectedLightId = null;
+  refreshLightLabel();
+}
+
+// DOM hover fallback in case the native placeable hover Hook is not emitted by
+// a particular Foundry v14 build. Ignore sidebar and other non-canvas UI.
+export function onCanvasPointerUp() {
+  // Native clicks control/release a light. Catch the result even if the v14
+  // controlAmbientLight Hook is not emitted by this Foundry build.
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => refreshLightLabel());
+  else queueMicrotask(() => refreshLightLabel());
+}
+
+export function onCanvasPointerMove(event) {
+  if (!lightingSelectActive()) { hoverLightId = null; refreshLightLabel(); return; }
+  const board = event?.target?.closest?.("#board") ||
+    event?.target === canvas?.app?.view || event?.target === canvas?.app?.canvas;
+  if (!board || !Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) {
+    if (hoverLightId) { hoverLightId = null; refreshLightLabel(); }
+    return;
+  }
+  let nearest = null;
+  let bestSquared = 30 * 30;
+  for (const doc of listWoDLights()) {
+    if (otherLevel(doc) || canvas.isOffscreen?.({ x: doc.x, y: doc.y })) continue;
+    const p = positionOf(doc.x, doc.y);
+    if (!p) continue;
+    const squared = (p.x - event.clientX) ** 2 + (p.y - event.clientY) ** 2;
+    if (squared < bestSquared) { bestSquared = squared; nearest = doc.id; }
+  }
+  if (nearest !== hoverLightId) { hoverLightId = nearest; refreshLightLabel(); }
+}
+
+export function refreshLightOverlays() {
+  for (const node of activePulses) {
+    const x = Number(node.dataset.worldX), y = Number(node.dataset.worldY);
+    const p = positionOf(x, y);
+    if (p) { node.style.left = `${p.x}px`; node.style.top = `${p.y}px`; }
+  }
+  return refreshLightLabel();
+}
+
+export function closeLightOverlays() {
+  closeLightFinder();
+  activeLabel?.remove();
+  activeLabel = null;
+  hoverLightId = selectedLightId = null;
+  lastSelectPulse = 0;
+  scheduledSelectPulse = false;
+  for (const node of activePulses) node.remove();
+  activePulses.clear();
+}
+
+export function pulseLightPosition(x, y, name = "Light placed", options = {}) {
   if (!eligible() || !Number.isFinite(x) || !Number.isFinite(y)) return false;
-  pulse?.remove();
   const p = positionOf(x, y);
   if (!p || typeof document === "undefined") return false;
   const container = document.createElement("div");
@@ -73,14 +189,46 @@ export function pulseLightPosition(x, y, name = "Light placed") {
   container.style.top = `${p.y}px`;
   const ring = document.createElement("span");
   ring.className = "wod-light-pulse-ring";
-  const caption = document.createElement("span");
-  caption.className = "wod-light-pulse-label";
-  caption.textContent = name;
-  container.append(ring, caption);
+  container.appendChild(ring);
+  if (options.label !== false) {
+    const caption = document.createElement("span");
+    caption.className = "wod-light-pulse-label";
+    caption.textContent = name;
+    container.appendChild(caption);
+  }
+  container.dataset.worldX = String(x);
+  container.dataset.worldY = String(y);
   document.body.appendChild(container);
-  pulse = container;
-  setTimeout(() => { container.remove(); if (pulse === container) pulse = null; }, 2300);
+  activePulses.add(container);
+  setTimeout(() => { activePulses.delete(container); container.remove(); }, options.duration ?? 3400);
   return true;
+}
+
+export function pulseWoDLightsOnViewedLevel() {
+  if (!eligible()) return 0;
+  const visible = listWoDLights().filter(doc => !otherLevel(doc) && !canvas.isOffscreen?.({ x: doc.x, y: doc.y }));
+  for (const doc of visible) pulseLightPosition(doc.x, doc.y, doc.name ?? "Light", { label: false, duration: 3200 });
+  if (!visible.length) ui.notifications.info("WoD Light: no fixtures visible on this part of the scene.");
+  return visible.length;
+}
+
+function scheduleSelectPulse() {
+  if (scheduledSelectPulse || !game.user?.isGM) return;
+  // Both control activation and tool selection may happen in the same UI action.
+  // Suppress the duplicate animation without suppressing later explicit selections.
+  if (Date.now() - lastSelectPulse < 350) return;
+  scheduledSelectPulse = true;
+  const run = () => {
+    scheduledSelectPulse = false;
+    if (!lightingSelectActive()) return;
+    lastSelectPulse = Date.now();
+    pulseWoDLightsOnViewedLevel();
+    refreshLightLabel();
+  };
+  // v14 may activate the layer after calling its change handler. Wait for
+  // its next frame so the canvas and control palette are settled.
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(run);
+  else queueMicrotask(run);
 }
 
 export function closeLightFinder() {
@@ -90,6 +238,7 @@ export function closeLightFinder() {
 }
 
 export function refreshLightMarkers() {
+  refreshLightOverlays();
   if (!finder || !eligible() || finder.sceneId !== canvas?.scene?.id) {
     if (finder) closeLightFinder();
     return;
@@ -200,6 +349,45 @@ export function registerLightFinderTool(controls) {
   if (!game.user?.isGM) return;
   const lighting = controls?.lighting ?? Object.values(controls ?? {}).find(c => c?.name === "lighting");
   if (!lighting?.tools) return;
+
+  // Foundry v14 activates the Lighting *control* separately from its Select
+  // *tool*. Listen to both paths. SceneControl callbacks take (event, active),
+  // while onToolChange takes (event, tool, active).
+  if (!lighting._wodLightWrapped) {
+    const originalOnChange = lighting.onChange;
+    lighting.onChange = (...args) => {
+      const result = typeof originalOnChange === "function" ? originalOnChange(...args) : undefined;
+      if (args[1] === true && (!lighting.activeTool || lighting.activeTool === "select")) scheduleSelectPulse();
+      else if (args[1] === false) {
+        hoverLightId = selectedLightId = null;
+        queueMicrotask(() => refreshLightLabel());
+      }
+      return result;
+    };
+    const originalToolChange = lighting.onToolChange;
+    lighting.onToolChange = (...args) => {
+      const result = typeof originalToolChange === "function" ? originalToolChange(...args) : undefined;
+      if (args[1]?.name === "select" && args[2] === true) scheduleSelectPulse();
+      else if (args[2] === true) refreshLightLabel();
+      return result;
+    };
+    lighting._wodLightWrapped = true;
+  }
+  const selectTool = lighting.tools.select;
+  if (selectTool && !selectTool._wodLightWrapped) {
+    const originalOnChange = selectTool.onChange;
+    selectTool.onChange = (...args) => {
+      const result = typeof originalOnChange === "function" ? originalOnChange(...args) : undefined;
+      if (args[1] === true) scheduleSelectPulse();
+      else if (args[1] === false) {
+        hoverLightId = selectedLightId = null;
+        queueMicrotask(() => refreshLightLabel());
+      }
+      return result;
+    };
+    selectTool._wodLightWrapped = true;
+  }
+
   const toolOrder = Math.max(0, ...Object.values(lighting.tools).map(t => Number(t.order) || 0)) + 1;
   lighting.tools.wodLightFind = {
     name: "wodLightFind", title: "Find WoD Lights", icon: "fa-solid fa-magnifying-glass-location",

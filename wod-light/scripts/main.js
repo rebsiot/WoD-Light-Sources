@@ -1,5 +1,5 @@
 import { PRESETS, PRESET_BY_ID, GROUPS } from "./presets.js";
-import { registerLightFinderTool, showLightFinder, locateWoDLight, closeLightFinder, refreshLightMarkers, pulseLightPosition } from "./finder.js";
+import { registerLightFinderTool, showLightFinder, locateWoDLight, closeLightOverlays, refreshLightMarkers, pulseLightPosition, onLightHover, onLightControl, onCanvasPointerMove, onCanvasPointerUp } from "./finder.js";
 
 const MOD = "wod-light";
 const ROOT_NAME = "WoD Light";
@@ -331,6 +331,13 @@ Hooks.on("renderTokenHUD", onTokenHudRender);
 
 Hooks.on("getSceneControlButtons", registerLightFinderTool);
 Hooks.on("canvasPan", refreshLightMarkers);
-Hooks.on("canvasTearDown", closeLightFinder);
+Hooks.on("canvasTearDown", closeLightOverlays);
 Hooks.on("updateAmbientLight", refreshLightMarkers);
 Hooks.on("deleteAmbientLight", refreshLightMarkers);
+Hooks.on("hoverAmbientLight", onLightHover);
+Hooks.on("controlAmbientLight", onLightControl);
+// A fallback for builds in which Ambient Light hover Hooks are not emitted.
+Hooks.once("ready", () => {
+  document.addEventListener("pointermove", onCanvasPointerMove, { passive: true });
+  document.addEventListener("pointerup", onCanvasPointerUp, { passive: true });
+});
