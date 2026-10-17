@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="stage spot">
+  <rect width="96" height="96" rx="19" fill="#132537"/>
+  <rect x="3" y="3" width="90" height="90" rx="17" fill="none" stroke="#36536C" stroke-width="2"/>
+  <circle cx="48" cy="48" r="34" fill="#FFD08B" opacity=".075"/>
+  <path d="M23 24h32l9 26H30z" fill="#EDF5FB"/><path d="M26 25 14 16v23l12-4M62 26l11-9v26L63 37" fill="#EDF5FB"/><path d="M58 50 81 81H42z" fill="#FFD08B" opacity=".76"/><path d="M28 52 22 65" stroke="#EDF5FB" stroke-width="7" stroke-linecap="round"/>
+  <rect x="36" y="86" width="24" height="3" rx="1.5" fill="#FFD08B"/>
+</svg>

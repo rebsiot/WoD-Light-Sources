@@ -1,3 +1,28 @@
+# WoD Light v0.1.7 — Test Report
+
+**Prepared:** 2026-10-17; **Environment:** local Node.js v22 mock Foundry harness plus Python SVG/XML raster validation. Live Foundry client not connected.
+
+## Verified locally
+
+- 51 total presets and 51 distinct preset IDs, comprising 27 unchanged originals and 24 additions (Indoor 11, Outdoor 5, Effects 6, Portable 2); 10 portable overall.
+- All 51 SVG assets exist and are parseable; original 27 icons are byte-identical to v0.1.6. New 24 icons manually inspected at 84px and 24px on a contact sheet.
+- New scene presets create native Ambient Lights with their own flags, expected ranges, optional Level behavior and unchanged selection/pulse mechanism.
+- New portable searchlight and road flare use the existing held-light Token HUD set/switch/off/restore behavior and 3-o'clock origin geometry. Searchlight cone remains directional; road flare remains 360°.
+- Catalog upgrade logic on an installed 27-Item world offers exactly 24 missing presets once, creates only missing Items when accepted, preserves existing Item instances and custom images, and does not reprompt after declining. Manual later installation remains available.
+- Existing tests still cover GMs/non-GMs, duplicate installation prevention, icon refresh safeguards, token ownership, Lighting finder, continuous GM-only locator rings, hover/selection labels, scene updates and teardown.
+- `node --check` source checks, `node tests/smoke.mjs`, JSON manifest, SVG parsing, complete release ZIP content.
+
+## Pending live checks
+
+1. Upgrade the existing world from v0.1.6; verify GM sees one `Add 24 Lights` prompt, then the four existing Items folders contain the new presets without any customized Items changing.
+2. Drag **Subway Platform Strip** and **Warehouse High-Bay LED** onto appropriate maps; confirm native Ambient Lights are selected and movable/deletable, with continuous locator pulses while Lighting is active.
+3. Equip **Handheld Searchlight** and **Emergency Road Flare** separately on a test Actor; check light toggle, angle/color, cone rotation, right-edge origin, and prior-light restoration in a real client. Test wall occlusion and one second-player view.
+4. Restart GM/browser; verify the missing-preset prompt does not repeat and no new duplicates appear.
+
+**Evidence classification:** static, raster and mock-tested; **not live-verified**. Never claim the Foundry deployment succeeded until a live map/token workflow is confirmed.
+
+---
+
 # WoD Light v0.1.6 — Test Report
 
 **Prepared:** 2026-10-17  

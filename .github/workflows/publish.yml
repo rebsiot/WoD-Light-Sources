@@ -32,7 +32,8 @@ jobs:
           node --check wod-light/scripts/finder.js
           node --check wod-light/scripts/held-lights.js
           node tests/smoke.mjs
-          test "$(find wod-light/assets/icons -maxdepth 1 -name '*.svg' | wc -l)" -eq 27
+          test "$(find wod-light/assets/icons -maxdepth 1 -name '*.svg' | wc -l)" -eq 51
+          python3 -c "from pathlib import Path; from xml.etree import ElementTree as ET; [ET.parse(str(p)) for p in Path('wod-light/assets/icons').glob('*.svg')]"
           VERSION="$(node -p "require('./wod-light/module.json').version")"
           TAG="v${VERSION}"
           node - <<'NODE'

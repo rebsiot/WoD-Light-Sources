@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="pendant bar">
+  <rect width="96" height="96" rx="19" fill="#132537"/>
+  <rect x="3" y="3" width="90" height="90" rx="17" fill="none" stroke="#36536C" stroke-width="2"/>
+  <circle cx="48" cy="48" r="34" fill="#FFD08B" opacity=".075"/>
+  <path d="M48 15v26" stroke="#EDF5FB" stroke-width="7" stroke-linecap="round"/><path d="M33 41h30l18 27H15z" fill="#EDF5FB"/><rect x="23" y="66" width="50" height="7" rx="3.5" fill="#FFD08B"/><path d="M32 80h32" stroke="#FFD08B" stroke-width="4" stroke-linecap="round"/>
+  <rect x="36" y="86" width="24" height="3" rx="1.5" fill="#FFD08B"/>
+</svg>

@@ -5,7 +5,12 @@ import { resolve } from 'node:path';
 // Mock only Foundry's narrowly-used APIs. A successful test is NOT a live Foundry test.
 const events = new Map();
 globalThis.Hooks = {
-  once(name, cb) { events.set(`once:${name}`, cb); },
+  once(name, cb) {
+    const key = `once:${name}`;
+    const previous = events.get(key);
+    // Foundry supports multiple once handlers per hook; our mock must too.
+    events.set(key, previous ? async (...args) => { await previous(...args); return cb(...args); } : cb);
+  },
   on(name, cb) { events.set(name, cb); }
 };
 
@@ -19,6 +24,8 @@ const activatedLightTools = [];
 const warnings = [];
 const infos = [];
 const panCalls = [];
+const catalogPrompts = [];
+let nextCatalogConfirmation = true;
 let uid = 0;
 const record = (input) => ({
   ...input, id: `fake${++uid}`,
@@ -41,7 +48,7 @@ globalThis.Item = {
 };
 globalThis.foundry = {
   utils: { deepClone: structuredClone },
-  applications: { api: { DialogV2: { async confirm() { return true; } } } }
+  applications: { api: { DialogV2: { async confirm(options) { catalogPrompts.push(options); return nextCatalogConfirmation; } } } }
 };
 // Minimal Foundry v14 light-origin and emitted-source seams. Mocks do NOT
 // establish live compatibility; they prove that unrelated light sources are safe.
@@ -113,11 +120,27 @@ const presets = await import('../wod-light/scripts/presets.js');
 const main = await import('../wod-light/scripts/main.js');
 const finder = await import('../wod-light/scripts/finder.js');
 const held = await import('../wod-light/scripts/held-lights.js');
-assert.equal(presets.PRESETS.length, 27);
-assert.equal(new Set(presets.PRESETS.map(p => p.id)).size, 27);
-assert.equal(presets.PRESETS.filter(p => p.portable).length, 8);
+assert.equal(presets.PRESETS.length, 51);
+assert.equal(new Set(presets.PRESETS.map(p => p.id)).size, 51);
+assert.equal(presets.PRESETS.filter(p => p.portable).length, 10);
 assert.equal(presets.PRESETS.find(p => p.id === 'flashlight').light.angle, 55);
 assert.equal(presets.PRESETS.find(p => p.id === 'ceiling-4x60-warm').light.bright, 18);
+const newPresets = presets.PRESETS.slice(27);
+assert.equal(newPresets.length, 24);
+assert.equal(new Set(newPresets.map(p => p.id)).size, 24);
+const expectedNewGroups = {Indoor:11, Outdoor:5, Effects:6, Portable:2};
+for (const [group, count] of Object.entries(expectedNewGroups)) {
+  assert.equal(newPresets.filter(p => p.group === group).length, count, group);
+}
+assert.equal(presets.PRESET_BY_ID['tv-glow'].light.bright, 0);
+assert.equal(presets.PRESET_BY_ID['subway-strip'].light.bright, 22);
+assert.equal(presets.PRESET_BY_ID['warehouse-highbay'].light.dim, 50);
+assert.equal(presets.PRESET_BY_ID['tower-search'].light.angle, 35);
+assert.equal(presets.PRESET_BY_ID['stage-spot'].light.angle, 40);
+assert.equal(presets.PRESET_BY_ID['dance-strobe'].light.animation.type, 'pulse');
+assert.equal(presets.PRESET_BY_ID['road-flare'].light.animation.type, 'torch');
+assert.equal(presets.PRESET_BY_ID['hand-searchlight'].portable, true);
+assert.equal(presets.PRESET_BY_ID['road-flare'].portable, true);
 
 await events.get('once:init')();
 // Native origin is unchanged unless our Token HUD has enabled a portable Item.
@@ -141,6 +164,13 @@ assert.ok(Math.abs(flashlightHeld.getLightOrigin().y-208)<1e-8);
 const candleHeld = new MockTokenDocument({activeId:'candle'});
 assert.deepEqual(candleHeld.getLightOrigin(),{x:192,y:250,elevation:5});
 assert.equal(new MockTokenPlaceable(candleHeld)._getLightSourceData().rotation,0); // 360-degree light
+const searchlightHeld = new MockTokenDocument({activeId:'hand-searchlight'});
+searchlightHeld.light.angle = 30;
+assert.deepEqual(searchlightHeld.getLightOrigin(), {x:192, y:250, elevation:5});
+assert.equal(new MockTokenPlaceable(searchlightHeld)._getLightSourceData().rotation,270);
+const flareHeld = new MockTokenDocument({activeId:'road-flare'});
+assert.deepEqual(flareHeld.getLightOrigin(), {x:192, y:250, elevation:5});
+assert.equal(new MockTokenPlaceable(flareHeld)._getLightSourceData().rotation, 0);
 const stationary = new MockTokenDocument({activeId:'desk-60-day'});
 assert.deepEqual(stationary.getLightOrigin(),{x:150,y:250,elevation:5});
 assert.equal(new MockTokenPlaceable(stationary)._getLightSourceData().rotation,0);
@@ -149,15 +179,15 @@ assert.deepEqual(disabled.getLightOrigin(),{x:150,y:250,elevation:5});
 assert.deepEqual(held.installHeldLightOffsets(),{origin:true,direction:true}); // no stacked patch
 assert.deepEqual(disabled.getLightOrigin(),{x:150,y:250,elevation:5});
 assert.deepEqual(new MockTokenDocument({activeId:'flashlight'}).getLightOrigin(),{x:192,y:250,elevation:5});
-assert.equal(await main.installPresets(), 27);
+assert.equal(await main.installPresets(), 51);
 assert.equal(folders.length, 5);
-assert.equal(items.length, 27);
+assert.equal(items.length, 51);
 assert.equal(await main.installPresets(), 0);
-assert.equal(items.length, 27);
+assert.equal(items.length, 51);
 assert.equal(stored['wod-light.presetsInstalled'], true);
 // Every preset has its own packaged, parsed SVG, not a recycled Foundry stock icon.
 const iconDir = resolve(import.meta.dirname, '../wod-light/assets/icons');
-assert.equal(readdirSync(iconDir).filter(f => f.endsWith('.svg')).length, 27);
+assert.equal(readdirSync(iconDir).filter(f => f.endsWith('.svg')).length, 51);
 for (const item of items) {
   assert.equal(item.img, `modules/wod-light/assets/icons/${item.getFlag('wod-light', 'presetId')}.svg`);
   const svg = readFileSync(resolve(iconDir, `${item.getFlag('wod-light','presetId')}.svg`), 'utf-8');
@@ -171,6 +201,35 @@ assert.equal(await main.refreshPresetIcons(), 1);
 assert.equal(items[0].img, `modules/wod-light/assets/icons/${items[0].getFlag('wod-light','presetId')}.svg`);
 assert.equal(items[1].img, 'worlds/campaign/custom-lamp.webp');
 assert.equal(await main.refreshPresetIcons(), 0);
+// Existing v0.1.6 worlds have 27 old Items, and upgrade offers only the 24 missing.
+const originalItemRefs = new Map(items.filter(i => !newPresets.some(p => p.id === i.getFlag('wod-light', 'presetId'))).map(i => [i.id, i]));
+for (let i = items.length - 1; i >= 0; i--) {
+  if (newPresets.some(p => p.id === items[i].getFlag('wod-light','presetId'))) items.splice(i, 1);
+}
+assert.equal(items.length, 27);
+assert.equal(main.countMissingPresets(), 24);
+assert.equal(await main.offerMissingPresetsOnUpgrade(), true);
+assert.match(catalogPrompts.at(-1).content, /24 missing light presets/);
+assert.equal(items.length, 51);
+assert.equal(main.countMissingPresets(), 0);
+assert.equal(stored['wod-light.catalogPromptedFor'], '51-presets');
+assert.equal(await main.offerMissingPresetsOnUpgrade(), false);
+for (const [id, obj] of originalItemRefs) assert.equal(items.find(i => i.id === id), obj);
+assert.equal(items[1].img, 'worlds/campaign/custom-lamp.webp');
+// A declined offer is never repeated on every login; the GM can manually add later.
+const removedFlareIdx = items.findIndex(i => i.getFlag('wod-light','presetId') === 'road-flare');
+items.splice(removedFlareIdx, 1);
+stored['wod-light.catalogPromptedFor'] = '';
+nextCatalogConfirmation = false;
+const promptCountBefore = catalogPrompts.length;
+assert.equal(await main.offerMissingPresetsOnUpgrade(), false);
+assert.equal(catalogPrompts.length, promptCountBefore + 1);
+assert.equal(await main.offerMissingPresetsOnUpgrade(), false);
+assert.equal(catalogPrompts.length, promptCountBefore + 1);
+assert.equal(main.countMissingPresets(), 1);
+assert.equal(await main.installPresets(), 1);
+assert.equal(main.countMissingPresets(), 0);
+nextCatalogConfirmation = true;
 
 const desk = items.find(i => i.getFlag('wod-light', 'presetId') === 'desk-60-day');
 assert.equal(main.onCanvasDrop(canvas, { type: 'Item', uuid: `Item.${desk.id}`, x: 450, y: 700 }), false);
@@ -196,6 +255,21 @@ const priorSelectionCount = selectedLightIds.length;
 assert.equal(await main.placePresetOnScene('office-day', 55, 66, otherScene), true);
 assert.equal(selectedLightIds.length, priorSelectionCount);
 assert.equal(await main.focusPlacedLight(subwayScene, 'not-in-layer'), false);
+// New stationary source should use the same native AmbientLight placement contract.
+const newPlacementCalls = [];
+const isolatedScene = {
+  id: 'test-scene',
+  async createEmbeddedDocuments(type, payload) {
+    newPlacementCalls.push({type, payload});
+    return [{id:'test-light'}];
+  }
+};
+assert.equal(await main.placePresetOnScene('subway-strip', 50, 75, isolatedScene), true);
+assert.equal(newPlacementCalls[0].type, 'AmbientLight');
+assert.equal(newPlacementCalls[0].payload[0].name, 'Subway Platform Strip');
+assert.equal(newPlacementCalls[0].payload[0].config.bright, 22);
+assert.equal(newPlacementCalls[0].payload[0].flags['wod-light'].presetId, 'subway-strip');
+assert.equal(Object.hasOwn(newPlacementCalls[0].payload[0], 'levels'), false);
 
 assert.equal(main.onCanvasDrop(canvas, { type: 'Item', id: 'random', x: 1, y: 2 }), undefined);
 assert.equal(main.onCanvasDrop(canvas, { type: 'Actor', id: desk.id, x: 1, y: 2 }), undefined);
@@ -222,6 +296,19 @@ function makeToken(equipment = [flashlight, candle], isOwner = true) {
   };
   return { actor: { items: equipment }, document: doc };
 }
+// New carried lights must integrate with the existing HUD contract and off switch.
+const searchlightItem = items.find(i => i.getFlag('wod-light','presetId') === 'hand-searchlight');
+const roadFlareItem = items.find(i => i.getFlag('wod-light','presetId') === 'road-flare');
+const expandedToken = makeToken([searchlightItem, roadFlareItem]);
+const expandedOriginal = structuredClone(expandedToken.document.light);
+assert.equal(await main.setCarriedLight(expandedToken, 'hand-searchlight'), true);
+assert.equal(expandedToken.document.light.angle, 30);
+assert.equal(expandedToken.document.light.dim, 75);
+assert.equal(await main.setCarriedLight(expandedToken, 'road-flare'), true);
+assert.equal(expandedToken.document.light.angle, 360);
+assert.equal(expandedToken.document.light.color, '#ff5252');
+assert.equal(await main.setCarriedLight(expandedToken), true);
+assert.deepEqual(expandedToken.document.light, expandedOriginal);
 const token = makeToken();
 const expectedBefore = structuredClone(token.document.light);
 assert.equal(await main.setCarriedLight(token, 'flashlight'), true);
@@ -482,4 +569,16 @@ canvas.isOffscreen = () => false;
 game.user.isGM = true;
 events.get('canvasTearDown')();
 assert.equal(document.body.children.some(e => ['wod-light-pulse','wod-light-live-label','wod-light-continuous-locator'].includes(e.className)), false);
-console.log('PASS: portable 3-o-clock light origin and outward beam rotation, 27 SVG icons, persistent GM-only Lighting locators, movement/viewport and add/remove sync, control/layer shutdown, labels, finder, Level guard, placement, token HUD and restore.');
+// Real GM ready lifecycle: preserve multiple ready callbacks, offer missing once,
+// install additively, and publish the library controls on game.wodLight.
+items.splice(items.findIndex(i => i.getFlag('wod-light','presetId') === 'wall-sconce'), 1);
+stored['wod-light.catalogPromptedFor'] = '';
+nextCatalogConfirmation = true;
+const beforeReadyPrompts = catalogPrompts.length;
+await events.get('once:ready')();
+assert.equal(main.countMissingPresets(), 0);
+assert.equal(catalogPrompts.length, beforeReadyPrompts + 1);
+assert.equal(game.wodLight.presets.length, 51);
+assert.equal(typeof game.wodLight.installPresets, 'function');
+assert.equal(typeof game.wodLight.countMissingPresets, 'function');
+console.log('PASS: 51 presets (24 new), additive opt-in catalog upgrade, 51 SVG icons, portable 3-o-clock light origin and outward beam rotation, persistent GM-only Lighting locators, movement/viewport and add/remove sync, control/layer shutdown, labels, finder, Level guard, placement, token HUD and restore.');

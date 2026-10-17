@@ -1,3 +1,27 @@
+# Module 16 — WoD Light v0.1.7 Catalog Expansion
+
+**Thread owner:** Module 16 (`16.0 — WoD Light` continuing current conversation); **next conversation:** `16.1 — WoD Light Improvements`.
+**ID:** `wod-light`; **version:** `0.1.7` (2026-10-17); **repository:** `https://github.com/rebsiot/WoD-Light-Sources`; **manifest:** `https://github.com/rebsiot/WoD-Light-Sources/releases/latest/download/module.json`.
+**Evidence:** built and mock-tested locally; live Foundry client/player verification pending.
+
+## v0.1.7 requirements and implementation
+
+- User approved adding 24 practical modern-scene lights suggested for TC Modern-style urban/residential/industrial/transit/emergency/nightlife maps. **Preserve the existing 27 presets unchanged**, giving 51 total and 10 portable. Folders remain Indoor (+11), Outdoor (+5), Effects (+6), Portable (+2); no extra category or GM panel.
+- New item names, IDs, ranges and cone/animation colors in `wod-light/scripts/presets.js` and `wod-light/CATALOG.md`. Only p.portable Items activate via Token HUD. `Portable Worksite Flood` is an **Outdoor** scene fixture, not an Actor-held toggle.
+- All 51 preset icons are module-owned `wod-light/assets/icons/{presetId}.svg` with legible white silhouettes and restrained color; new 24 SVGs designed from shapes in `tools/generate_icons.py`. The original 27 are byte-for-byte identical to v0.1.6, no paid/creator art. Contact sheet `wod-light-v0.1.7-new-icons-preview.png` generated for review outside the module ZIP.
+- Upgrading a world with the original 27 Items: once-per-catalog **GM opt-in dialog** offers to add exactly the missing presets, no existing Item/Actor/Scene changes and no forced mass imports. Hidden world setting `catalogPromptedFor = "51-presets"` prevents repeated prompts on decline; later manual invocation `game.wodLight.installPresets()` remains available. New installs offer all 51. `presetsInstalled` behavior and folder/Item flags are unchanged.
+- Existing native AmbientLight drop, Find WoD Lights UI, continuous Lighting-layer locators, Levels fallback, portable Token HUD, and 3-o'clock Token edge light-origin integration preserved. Data contracts: `flags.wod-light.presetId` on Items and AmbientLight, `flags.wod-light.activeId/selectedId/previousLight` on Token Documents.
+- Updated release workflow `.github/workflows/publish.yml` to check 51 SVG assets and Node smoke tests. Docs, release notes, tests, catalog, module ZIP updated.
+
+## Release validation and remaining work
+
+- Mock tests: 51 IDs/icons, 24 new group counts, opt-in and declined upgrade behavior, Item identity/art preservation, new handheld light offset/cone/restore, new stationary native AmbientLight data, all previous scene/Token/Lighting UI mocks. Static JSON/SVG validation and visual review at 24px. **No live Foundry v14 verification**; do not claim deployment was tested.
+- Next live test: in existing world, accept `Add 24 Lights` once, drag a `Subway Platform Strip`, ensure selection and locator pulses; turn on `Handheld Searchlight` on an Actor and rotate token, then off to restore. Observe actual v14 emitted cone direction and walls.
+- Rollback: restore previous `wod-light` v0.1.6 module package after world/module backup; added world Item records remain until manually deleted or world snapshot restored. No existing light configurations, Actor Items or Scene documents are silently rewritten.
+- Shared docs: `00-START-HERE.md` should list Module 16 on next shared index update; `GLOBAL-04` status may change only on live confirmation. No TC Modern source module code/data or its assets were modified.
+
+---
+
 # Module 16 — WoD Light v0.1.6 Continuity Update
 
 **Thread:** 16.0 — WoD Light (latest in this conversation).  

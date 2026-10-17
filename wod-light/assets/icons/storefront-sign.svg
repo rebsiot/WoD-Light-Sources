@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="storefront sign">
+  <rect width="96" height="96" rx="19" fill="#132537"/>
+  <rect x="3" y="3" width="90" height="90" rx="17" fill="none" stroke="#36536C" stroke-width="2"/>
+  <circle cx="48" cy="48" r="34" fill="#AEE6FF" opacity=".075"/>
+  <path d="M18 41h60l-6 12H24z" fill="#EDF5FB"/><rect x="20" y="21" width="56" height="21" rx="4" fill="#AEE6FF"/><path d="M30 56v24M66 56v24" stroke="#EDF5FB" stroke-width="8" stroke-linecap="round"/><path d="M30 80h36M41 63h14" stroke="#EDF5FB" stroke-width="6" stroke-linecap="round"/><path d="M25 48h46" stroke="#17283A" stroke-width="4" stroke-dasharray="9 5"/>
+  <rect x="36" y="86" width="24" height="3" rx="1.5" fill="#AEE6FF"/>
+</svg>

@@ -4,6 +4,7 @@ import { registerLightFinderTool, showLightFinder, locateWoDLight, closeLightOve
 
 const MOD = "wod-light";
 const ROOT_NAME = "WoD Light";
+const CATALOG_REVISION = "51-presets";
 const LEGACY_ICON_PATHS = new Set(["icons/svg/light.svg", "icons/svg/torch.svg"]);
 const iconForPreset = p => `modules/${MOD}/assets/icons/${p.id}.svg`;
 
@@ -53,6 +54,31 @@ export async function installPresets() {
   await game.settings.set(MOD, "presetsInstalled", true);
   ui.notifications.info(`WoD Light: ${missing.length ? `created ${missing.length} light preset Items` : "light presets already installed"}.`);
   return missing.length;
+}
+
+// An upgrade never changes existing preset Items. One opt-in offer adds missing
+// presets for existing worlds; declining won't prompt on every GM login.
+export function countMissingPresets() {
+  const present = new Set(game.items.filter(i => i.getFlag(MOD, "presetId")).map(i => i.getFlag(MOD, "presetId")));
+  return PRESETS.filter(p => !present.has(p.id)).length;
+}
+
+export async function offerMissingPresetsOnUpgrade() {
+  if (!game.user.isGM || !game.settings.get(MOD, "presetsInstalled")) return false;
+  const missing = countMissingPresets();
+  if (!missing || game.settings.get(MOD, "catalogPromptedFor") === CATALOG_REVISION) return false;
+  // Reserve the prompt even when declined; the GM can still manually run
+  // game.wodLight.installPresets() later. No Scene, Actor, or Item edits yet.
+  await game.settings.set(MOD, "catalogPromptedFor", CATALOG_REVISION);
+  const confirmed = await foundry.applications.api.DialogV2.confirm({
+    window: { title: "WoD Light — New Light Presets" },
+    content: `<p>Add <strong>${missing} missing light presets</strong> to your existing <strong>WoD Light</strong> Items folders?</p><p>Only missing presets will be created. Your existing Items, custom images, Actors and placed lights are unchanged.</p>`,
+    yes: { label: `Add ${missing} Lights` },
+    no: { label: "Not Now" },
+    rejectClose: false
+  });
+  if (confirmed) await installPresets();
+  return Boolean(confirmed);
 }
 
 // Update only old, untouched generic module icons. Never replace artwork a GM
@@ -300,6 +326,9 @@ Hooks.once("init", () => {
   game.settings.register(MOD, "presetsInstalled", {
     scope: "world", config: false, type: Boolean, default: false
   });
+  game.settings.register(MOD, "catalogPromptedFor", {
+    scope: "world", config: false, type: String, default: ""
+  });
   game.settings.register(MOD, "lastPlaced", {
     scope: "client", config: false, type: String, default: ""
   });
@@ -307,7 +336,7 @@ Hooks.once("init", () => {
 
 Hooks.once("ready", async () => {
   game.wodLight = {
-    installPresets, refreshPresetIcons, placePresetOnScene,
+    installPresets, refreshPresetIcons, countMissingPresets, placePresetOnScene,
     findLights: showLightFinder, locateLight: locateWoDLight, presets: PRESETS
   };
   if (!game.user.isGM) return;
@@ -315,7 +344,11 @@ Hooks.once("ready", async () => {
     const count = await refreshPresetIcons();
     if (count) ui.notifications.info(`WoD Light: updated ${count} original preset icons. Customized images were preserved.`);
   } catch (error) { warn("could not refresh light icons", error); }
-  if (game.settings.get(MOD, "presetsInstalled")) return;
+  if (game.settings.get(MOD, "presetsInstalled")) {
+    try { await offerMissingPresetsOnUpgrade(); }
+    catch (error) { warn("could not offer the new light presets", error); }
+    return;
+  }
   try {
     const confirmed = await foundry.applications.api.DialogV2.confirm({
       window: { title: "WoD Light — Install Presets" },

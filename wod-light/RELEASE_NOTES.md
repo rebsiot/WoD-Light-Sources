@@ -1,3 +1,25 @@
+# WoD Light v0.1.7 — 2026-10-17
+
+Modern lighting catalog expansion for Foundry VTT v14 / WoD20 and TC Modern-style scenes.
+
+- Added **24 usable modern fixtures**, taking the catalog from 27 to **51** without changing any of the original preset IDs or lighting values.
+  - **Indoor (11):** Wall Sconce – Warm, Recessed Ceiling LED, Pendant / Bar Light, TV / Monitor Glow, Vending / Arcade Cabinet, Medical Examination Lamp, Display Case Spotlight, Subway Platform Strip, Parking Garage Fixture, Train / Bus Ceiling Strip, Warehouse High-Bay LED.
+  - **Outdoor (5):** Portable Worksite Flood (scene fixture), Bollard / Pathway Light, Illuminated Storefront Sign, Gas Station Canopy Light, Tower Searchlight.
+  - **Effects (6):** Stage Spotlight, Dance Floor Strobe, Neon Sign – Blue, Emergency Blue Flash, Amber Hazard Beacon, Campfire / Fire Pit.
+  - **Portable (2):** Handheld Searchlight, Emergency Road Flare.
+- Added 24 module-owned SVG pictograms, all checked at 24px; no font dependencies, paid map graphics or third-party assets. Original 27 pictograms unchanged.
+- Existing world: **one-time GM confirmation** to create only the missing presets (typically 24), never overwrite existing Items. If declined, manually run `game.wodLight.installPresets()` later. New world: offer all 51 at initial setup. No force import or destructive migration.
+- Existing portable Token HUD and 3-o'clock edge emission also apply to the new handheld searchlight (30° beam) and road flare (360° flickering red light). Scene placement remains standard native Ambient Lights.
+- Added `CATALOG.md` for all preset defaults and categories; retained four Items folders, Find WoD Lights, continuous pulses, hover/selection labels, and native lighting edit/delete.
+
+**Tests:** Node v22 syntax and mock suite passed (including 51 unique preset IDs and images, one-time upgrade/decline flow, new portable light switching/origin, native scene-light placement, and existing finder/Token HUD workflows). All 51 SVGs parse as XML; new icons visually reviewed at 24px/84px. **No live Foundry v14 or multiplayer verification performed.**
+
+**Upgrade:** Back up the world and old `wod-light` folder. In Foundry Setup update using `https://github.com/rebsiot/WoD-Light-Sources/releases/latest/download/module.json`, restart/reload; GM accepts the one-time `Add 24 Lights` prompt. No Scene/Actor import or reinstallation of TC Modern modules is needed.
+
+**Rollback:** Disable v0.1.7 and restore the published v0.1.6 module folder/manifest. Newly installed Item presets persist as world data unless you deliberately remove them; restore a world backup only if you need to reverse world document additions. No existing Item or Scene edits are performed by the catalog upgrade.
+
+---
+
 # WoD Light v0.1.6 — 2026-10-17
 
 Carried-light position improvement for Foundry VTT v14 + WoD20.

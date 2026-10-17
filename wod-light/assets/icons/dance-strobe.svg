@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="dance strobe">
+  <rect width="96" height="96" rx="19" fill="#132537"/>
+  <rect x="3" y="3" width="90" height="90" rx="17" fill="none" stroke="#36536C" stroke-width="2"/>
+  <circle cx="48" cy="48" r="34" fill="#E4ACFF" opacity=".075"/>
+  <circle cx="48" cy="47" r="23" fill="#EDF5FB"/><path d="M34 27v39M47 24v46M60 28v39M27 40h41M27 53h41" stroke="#17283A" stroke-width="4"/><path d="M48 12v11M17 45H7M88 45H78M21 20 12 11M75 20l9-9" stroke="#E4ACFF" stroke-width="6" stroke-linecap="round"/>
+  <rect x="36" y="86" width="24" height="3" rx="1.5" fill="#E4ACFF"/>
+</svg>

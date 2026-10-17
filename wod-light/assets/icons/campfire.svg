@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="campfire">
+  <rect width="96" height="96" rx="19" fill="#132537"/>
+  <rect x="3" y="3" width="90" height="90" rx="17" fill="none" stroke="#36536C" stroke-width="2"/>
+  <circle cx="48" cy="48" r="34" fill="#FFAF6D" opacity=".075"/>
+  <path d="M50 18q24 22 4 44-2-16-10-23 0 14-10 22-13-22 16-43" fill="#FFAF6D"/><path d="M41 47q8 9 3 19h10q10-13-1-24-3 11-12 5" fill="#EDF5FB"/><path d="M20 69 76 84M76 69 20 84" stroke="#EDF5FB" stroke-width="9" stroke-linecap="round"/>
+  <rect x="36" y="86" width="24" height="3" rx="1.5" fill="#FFAF6D"/>
+</svg>
