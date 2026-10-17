@@ -69,15 +69,63 @@ function getItemFromDrop(data) {
   return game.items.get(data.id) ?? null;
 }
 
+// Foundry v14 Scenes can contain multiple Levels. Keep dropped fixtures on the
+// GM's currently viewed floor rather than relying on the default elevation 0.
+function viewedLevelForScene(scene) {
+  const level = canvas?.scene?.id === scene?.id ? canvas.level : null;
+  if (!level?.id) return {};
+  return {
+    levels: [level.id],
+    ...(Number.isFinite(level.elevation?.bottom) ? { elevation: level.elevation.bottom } : {})
+  };
+}
+
+// Prefer native Lighting and Placeables tools to a second WoD Light manager.
+// A newly created document may take a few animation frames to get its placeable.
+export async function focusPlacedLight(scene, documentId) {
+  if (!game.user.isGM || !documentId || canvas?.scene?.id !== scene?.id) return false;
+  const layer = canvas.lighting;
+  if (!layer?.activate || !layer?.get) return false;
+  layer.activate({ tool: "select" });
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    if (canvas?.scene?.id !== scene?.id || layer.active === false) return false;
+    const light = layer.get(documentId);
+    if (light?.control) return light.control({ releaseOthers: true });
+    if (attempt < 9) {
+      await new Promise(resolve => {
+        if (typeof requestAnimationFrame === "function") requestAnimationFrame(resolve);
+        else resolve();
+      });
+    }
+  }
+  return false;
+}
+
+let shownPlacementHint = false;
 export async function placePresetOnScene(presetId, x, y, scene = canvas?.scene) {
   const preset = PRESET_BY_ID[presetId];
   if (!game.user.isGM || !preset || !scene || !Number.isFinite(x) || !Number.isFinite(y)) return false;
-  await scene.createEmbeddedDocuments("AmbientLight", [{
+  const created = await scene.createEmbeddedDocuments("AmbientLight", [{
     x, y, name: preset.name, rotation: 0, hidden: false,
     walls: true, vision: false,
+    ...viewedLevelForScene(scene),
     config: foundry.utils.deepClone(preset.light),
     flags: { [MOD]: { presetId: preset.id } }
   }]);
+  if (!created?.length) return false;
+
+  // Make the new fixture immediately manageable: selecting it on the native
+  // Lighting layer exposes drag-to-move and Delete without hunting for a dot.
+  let focused = false;
+  try { focused = await focusPlacedLight(scene, created[0].id); }
+  catch (error) { console.warn("WoD Light | created light but could not select it", error); }
+  if (!shownPlacementHint) {
+    shownPlacementHint = true;
+    ui.notifications.info(focused
+      ? "WoD Light: new light selected. Drag to move or press Delete; Lighting > Placeables lists existing lights."
+      : "WoD Light: light placed. Use Lighting > Placeables to find and edit it.");
+  }
   return true;
 }
 

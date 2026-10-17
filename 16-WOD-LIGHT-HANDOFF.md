@@ -3,7 +3,7 @@
 **Owning conversation:** `16.0 — WoD Light` (user-selected initial thread name)  
 **Next development conversation:** `16.1 — WoD Light Improvements`  
 **Created:** 2026-10-16  
-**Status:** Initial private campaign-only module assembled; **mock-tested, live Foundry verification pending**.
+**Status:** v0.1.1 campaign patch ready; v0.1.0 map placement user-confirmed, v0.1.1 Level-aware selection **mock-tested and live Foundry verification pending**.
 
 ## Purpose and settled requirements
 
@@ -14,6 +14,17 @@
 - Giving a portable preset Item to an Actor causes a Torch-like lightbulb to appear in the upper-left Token HUD; click on/off, right-click to choose carried source.
 - A flashlight emits a cone of light which should turn with token rotation. Players should never have to edit token light settings.
 - Native WoD20 Item type is exactly `Item`; do not change Actor schema or the other project's modules.
+
+## v0.1.1 — 2026-10-17 (this conversation)
+
+- User reported: an Office Fluorescent preset dropped onto the subway Scene but its control was effectively impossible to locate for moving/deleting.
+- Foundry v14 changed Ambient Light markers to small dots. The native Placeables sidebar (Lighting layer) lists/searches the scene lights and supports selection.
+- v0.1.0 placed lights without explicit native v14 Level/elevation, possibly producing off-floor results in multi-Level subway maps.
+- Fix: new lights include `levels: [canvas.level.id]` and `elevation: canvas.level.elevation.bottom` when the viewed Level exists. After the `AmbientLight` is created, activate native Lighting with Select tool and control the newly created light by returned ID. If the placeable has not drawn, bounded animation-frame retries and a Placeables fallback keep the creation intact.
+- No custom manager panel, no new Items, no migrations. Previously placed lights are **not changed**. The existing wrongly placed light must be located via Placeables (show all Levels / clear Viewed filter), then manually edited, deleted or replaced.
+- Tests: updated Node 22 mock tests cover multi-Level placement, auto-selection, same-scene guard, and no-Level scenes. Live v14 with the actual subway map still pending.
+- Module version `0.1.1`; release manifest unchanged: `https://github.com/rebsiot/WoD-Light-Sources/releases/latest/download/module.json`.
+- Next test: in subway while viewing the intended Level, drag new Office Fluorescent; check that it is selected and movable/deletable and that it shows on that Level.
 
 ## Initial release
 

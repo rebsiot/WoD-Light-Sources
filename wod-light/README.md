@@ -1,4 +1,4 @@
-# WoD Light v0.1.0
+# WoD Light v0.1.1
 
 A small **private St. Louis v2 campaign module** for Foundry VTT v14 + World of Darkness 20th (`worldofdarkness`, approximately 7.3.x). No Torch dependency, GM panel, custom lighting engine or battery bookkeeping.
 
@@ -19,7 +19,13 @@ and install. This GitHub Release manifest points to the matching installable ZIP
 
 ## GM: place a scene light
 
-Open the **Items** directory, expand `WoD Light`, and drag a preset Item onto the canvas. The module creates a **normal Ambient Light** at the dropped position. You can reposition, duplicate, edit and delete it with Foundry's native Lighting controls. The item is a placement template, not a tile or token.
+Open the **Items** directory, expand `WoD Light`, and drag a preset Item onto the canvas. The module creates a **normal Ambient Light** at the dropped position, on the currently viewed **Level** in Foundry v14.
+
+**After placing a light, Foundry's Lighting layer opens and the new light is selected.** Drag the selected control to move it, press **Delete** to remove just that light, or double-click to edit it. This uses Foundry's native controls, not a separate management panel. The Item is a placement template, not a tile or token.
+
+**Finding an older light:** Open **Lighting** controls (left), then the **Placeables** sidebar tab (right). Search for the light's preset name, such as `Office Fluorescent`. If the light is not listed on a multi-floor scene, show **all Levels** / clear any **Viewed Level** filter. Foundry v14 uses small control dots for lights, which are easy to overlook. You can move, edit or remove the selected light using native controls. Do **not** use the core `Clear Lights` command unless you mean to remove every light in the scene.
+
+**Important for v0.1.0 placements:** Earlier dropped lights were created without explicit Level/elevation information. Existing lights are **never relocated automatically** by the update. Find them using the Placeables tab (including other Levels), adjust the correct Level in native Light configuration or remove and replace individually, after checking which light it is.
 
 If you dismissed the first-run prompt, open the browser console as GM and run `game.wodLight.installPresets()`. Running it again only adds presets whose IDs are absent; it does not overwrite customized Items.
 
@@ -36,6 +42,8 @@ Only the token's owner or the GM can operate the button. No equipment Item => no
 
 ## Notes / limitations
 
+- When working on a v14 multi-Level Scene, new Ambient Lights are assigned to the currently viewed Level and its bottom elevation. This needs live verification in the subway scene.
+- New light selection depends on the native Lighting layer drawing the created light; if selection does not become available, use the Placeables tab.
 - Preset distances use the Scene's configured distance units; the numbers assume scenes measured in feet. They are game-friendly approximations, **not measured bulb lumens**. Adjust individual native Ambient Lights as needed.
 - Item drop uses the Foundry `dropCanvasData` hook. It is designed for **world Items created in the WoD Light folder**. Compendium-only or nested third-party drag flows have not been confirmed.
 - Stationary light placement is GM-only. Players can toggle a light only when carrying its tagged equipment Item.
@@ -52,7 +60,7 @@ Only the token's owner or the GM can operate the button. No equipment Item => no
 
 ## Technical
 
-- Module ID: `wod-light`; version: `0.1.0`.
+- Module ID: `wod-light`; version: `0.1.1`.
 - WoD20 generic equipment type: `Item`.
 - Preset Item flag: `flags.wod-light.presetId`.
 - Token flags: `flags.wod-light.activeId` and `flags.wod-light.previousLight`.
@@ -60,6 +68,13 @@ Only the token's owner or the GM can operate the button. No equipment Item => no
 - No modified system files or external dependencies.
 
 ## Release notes
+
+### 0.1.1 — 2026-10-17
+- Fixed new light fixtures being hard to locate immediately after a drop: activate the native Lighting layer and select the newly created Ambient Light.
+- New lights receive the currently viewed Foundry v14 Level and bottom elevation when a Level is available.
+- Added instructions for locating or removing previously placed lights via the native Placeables tab, including all-Level search for legacy lights.
+- Preserves existing Ambient Lights and all player/Token lighting settings; no world migration.
+- Tests: Node syntax and simulated multi-Level scene selection/drop passed; live Foundry v14 not yet verified.
 
 ### 0.1.0 — 2026-10-16
 - Added 27 basic indoor, outdoor, portable and atmospheric light presets.

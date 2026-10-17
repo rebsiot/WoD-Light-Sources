@@ -11,6 +11,9 @@ const folders = [];
 const items = [];
 const stored = {};
 const lightsCreated = [];
+const placedLights = new Map();
+const selectedLightIds = [];
+const activatedLightTools = [];
 let uid = 0;
 const record = (input) => ({
   ...input, id: `fake${++uid}`,
@@ -42,7 +45,28 @@ globalThis.game = {
     async set(ns, name, val) { stored[`${ns}.${name}`] = val; }
   }
 };
-globalThis.canvas = { scene: { async createEmbeddedDocuments(type, data) { lightsCreated.push({ type, data }); } } };
+const subwayScene = {
+  id: 'scene-subway',
+  async createEmbeddedDocuments(type, data) {
+    const docs = data.map(() => ({ id: `light-${++uid}` }));
+    lightsCreated.push({ type, data, docs });
+    for (const doc of docs) {
+      placedLights.set(doc.id, {
+        control() { selectedLightIds.push(doc.id); return true; }
+      });
+    }
+    return docs;
+  }
+};
+globalThis.canvas = {
+  scene: subwayScene,
+  level: { id: 'subway-platform', elevation: { bottom: -20, top: -10 } },
+  lighting: {
+    active: false,
+    activate({tool}) { this.active = true; activatedLightTools.push(tool); return this; },
+    get(id) { return placedLights.get(id); }
+  }
+};
 globalThis.fromUuidSync = uuid => {
   const found = items.find(i => `Item.${i.id}` === uuid);
   if (found) return { ...found, documentName: 'Item' };
@@ -72,6 +96,24 @@ assert.equal(lightsCreated.length, 1);
 assert.equal(lightsCreated[0].type, 'AmbientLight');
 assert.equal(lightsCreated[0].data[0].x, 450);
 assert.equal(lightsCreated[0].data[0].config.color, '#eef4ff');
+assert.deepEqual(lightsCreated[0].data[0].levels, ['subway-platform']);
+assert.equal(lightsCreated[0].data[0].elevation, -20);
+assert.deepEqual(activatedLightTools, ['select']);
+assert.deepEqual(selectedLightIds, [lightsCreated[0].docs[0].id]);
+// A previously created light remains untouched. A level-less scene must still work.
+canvas.level = null;
+assert.equal(await main.placePresetOnScene('office-warm', 90, 120), true);
+assert.equal(lightsCreated.length, 2);
+assert.equal(Object.hasOwn(lightsCreated[1].data[0], 'levels'), false);
+assert.equal(Object.hasOwn(lightsCreated[1].data[0], 'elevation'), false);
+assert.deepEqual(selectedLightIds, [lightsCreated[0].docs[0].id, lightsCreated[1].docs[0].id]);
+// A different Scene must not inherit the current viewed floor or alter controls.
+const otherScene = { id: 'other-scene', async createEmbeddedDocuments(_type, _data) { return [{id: 'other-light'}]; } };
+const priorSelectionCount = selectedLightIds.length;
+assert.equal(await main.placePresetOnScene('office-day', 55, 66, otherScene), true);
+assert.equal(selectedLightIds.length, priorSelectionCount);
+assert.equal(await main.focusPlacedLight(subwayScene, 'not-in-layer'), false);
+
 assert.equal(main.onCanvasDrop(canvas, { type: 'Item', id: 'random', x: 1, y: 2 }), undefined);
 assert.equal(main.onCanvasDrop(canvas, { type: 'Actor', id: desk.id, x: 1, y: 2 }), undefined);
 
@@ -206,4 +248,4 @@ assert.equal(twoSourceToken.document.getFlag('wod-light', 'activeId'), 'candle')
 const noLightRoot = new FakeElement(); noLightRoot.left = new FakeElement();
 main.onTokenHudRender({ object: makeToken([]) }, noLightRoot);
 assert.equal(noLightRoot.left.children.length, 0);
-console.log('PASS: presets (27), idempotent install, scene drop, native light creation, token restore/switch, ownership, HUD injection and toggle.');
+console.log('PASS: presets (27), idempotent install, scene drops, current Level placement, immediate native Lighting selection, token restore/switch, ownership, HUD injection and toggle.');
