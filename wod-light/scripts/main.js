@@ -1,4 +1,5 @@
 import { PRESETS, PRESET_BY_ID, GROUPS } from "./presets.js";
+import { installHeldLightOffsets } from "./held-lights.js";
 import { registerLightFinderTool, showLightFinder, locateWoDLight, closeLightOverlays, refreshLightMarkers, pulseLightPosition, onLightHover, onLightControl, onCanvasPointerMove, onCanvasPointerUp, onCanvasLayerActivated, onLightingLayerDeactivated } from "./finder.js";
 
 const MOD = "wod-light";
@@ -295,6 +296,7 @@ export function onTokenHudRender(hud, html) {
 }
 
 Hooks.once("init", () => {
+  installHeldLightOffsets();
   game.settings.register(MOD, "presetsInstalled", {
     scope: "world", config: false, type: Boolean, default: false
   });

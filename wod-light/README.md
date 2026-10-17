@@ -1,8 +1,16 @@
-# WoD Light v0.1.5
+# WoD Light v0.1.6
 
 A small **private St. Louis v2 campaign module** for Foundry VTT v14 + World of Darkness 20th (`worldofdarkness`, approximately 7.3.x). No Torch dependency, GM panel, custom lighting engine or battery bookkeeping.
 
 
+
+## Portable hand-held light positions in v0.1.6
+
+- **All eight active portable Items** emit from approximately the **3 o'clock / right edge of the token**, instead of the center. This includes Flashlight, Tactical Flashlight, Headlamp, Phone Light, Camping Lantern, Candle, Glow Stick and Hand Torch.
+- **Directional light cones** begin on the right edge and face outward. Rotating the token rotates both the offset and the beam. **360-degree lights** still spread in all directions, but from the right-hand side. At token rotation 0, the offset is east/right; at 90 degrees it is south/below.
+- Only applies when an active portable Item was enabled via the WoD Light Token HUD. Normal token illumination, other modules' lights when our portable Item is inactive, scene Ambient Lights, vision origins and prototype tokens are unchanged.
+- Uses Foundry v14's TokenDocument `getLightOrigin()` to move the native light source. For cone orientation it adapts the v14 protected Token `_getLightSourceData()` output; this integration **must be verified in the live campaign**, especially on rotation and near walls. It creates no extra Scene documents or tokens.
+- Turn off the HUD light to restore the prior token light config and the ordinary light origin. No Item updates or migration required.
 
 ## Persistent locator behavior in v0.1.5
 
@@ -49,8 +57,8 @@ The GM drags an Item from `WoD Light > Portable` onto a character's Actor sheet.
 
 - **Left click:** switch carried light on/off.
 - **Right click:** choose a different carried light if the character has more than one.
-- **Flashlight, tactical flashlight, headlamp and phone:** directional beam; rotating the token turns the cone with the token's facing.
-- **Lantern, candle, glow stick and torch:** omnidirectional.
+- **Flashlight, tactical flashlight, headlamp and phone:** a right-edge, outward-facing directional beam that turns with the token.
+- **Lantern, candle, glow stick and torch:** 360-degree light emitted from the right edge of the token.
 
 Only the token's owner or the GM can operate the button. No equipment Item => no button. The module snapshots and restores that *specific token's* prior light settings instead of editing prototype tokens.
 
@@ -62,6 +70,7 @@ Only the token's owner or the GM can operate the button. No equipment Item => no
 - Item drop uses the Foundry `dropCanvasData` hook. It is designed for **world Items created in the WoD Light folder**. Compendium-only or nested third-party drag flows have not been confirmed.
 - Stationary light placement is GM-only. Players can toggle a light only when carrying its tagged equipment Item.
 - Foundry v14 + live WoD20 + multiplayer testing **not yet performed**; this package has static and simulated tests only.
+- Portable edge emission uses v14 `getLightOrigin()` plus a guarded adapter for the Token emitted light data. Confirm real light cones face outward on 0/90 degree rotation and that wall occlusion behaves as intended. Other modules overriding token source methods may conflict.
 - Potential interaction with other modules that directly replace Token light settings (Torch and similar) is not tested. Prefer disabling those overlapping lighting controls in the campaign.
 - Deleting an Item from an Actor does not forcibly turn off a light that was previously activated; turn it off first. This will be revisited only if necessary.
 - Preset creation is additive. The only automatic upgrade edit is the `img` field of identifiable *world* preset Items still using the original generic stock icon; customized artwork and all Actor Items remain untouched. Disabling the module does not delete Items or Ambient Lights it has created.
@@ -74,7 +83,7 @@ Only the token's owner or the GM can operate the button. No equipment Item => no
 
 ## Technical
 
-- Module ID: `wod-light`; version: `0.1.5`.
+- Module ID: `wod-light`; version: `0.1.6`.
 - WoD20 generic equipment type: `Item`.
 - Preset Item flag: `flags.wod-light.presetId`.
 - Token flags: `flags.wod-light.activeId` and `flags.wod-light.previousLight`.
@@ -82,6 +91,11 @@ Only the token's owner or the GM can operate the button. No equipment Item => no
 - No modified system files or external dependencies.
 
 ## Release notes
+
+### 0.1.6 — 2026-10-17
+- Offset active portable light sources to the token's 3 o'clock edge, with directional beams pointed outward and rotating with the token. Original light origins are restored when disabled.
+- No duplicate Ambient Lights or Items, Actor changes, new permissions, or migrations. Existing HUD and GM lighting workflows preserved.
+- Native v14 light-origin API and protected emitted-light data adapter mock-tested; real v14 directional rendering and wall occlusion still require live confirmation.
 
 ### 0.1.5 — 2026-10-17
 - Continuously pulse every visible WoD Light fixture while the GM is using Foundry's **Lighting** controls; stop and clean up immediately when switching tools or scenes.

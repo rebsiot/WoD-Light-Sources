@@ -1,3 +1,23 @@
+# WoD Light v0.1.6 — 2026-10-17
+
+Carried-light position improvement for Foundry VTT v14 + WoD20.
+
+- Portable lights now originate near the **right (3 o'clock) edge** of the character token, not the center. The offset follows token rotation and uses a radius 42% of the smaller token pixel dimension.
+- Directional flashlight/headlamp/phone cones are rotated toward the outward side of the token while omnidirectional candles, lanterns, torches and glow sticks remain 360-degree illumination.
+- Changes are scoped strictly to Token Documents with WoD Light's own **active portable Item** flag. Inactive tokens and other token light sources retain their normal native position/direction. Turning off the portable Item restores its saved light configuration.
+- Implementation wraps Foundry v14's `TokenDocument.getLightOrigin` and the Token `_getLightSourceData` method only where those v14 APIs exist; no additional scene Ambient Lights, world documents, or network requests.
+- Preserved: all 27 original SVGs and presets, lighting layer persistent locator rings, GM finder, Item drag placement, Token HUD UI, stable module ID and manifest. No migration or new configuration.
+
+**Upgrade:** Back up your world and module folder, update with the existing Foundry manifest, then restart Foundry/hard-refresh. Existing Item and Token data remain unchanged.
+
+**Live smoke test required:** On an unobstructed scene, give a player a Flashlight. Activate the Token HUD light. With token rotation 0, the beam should originate at the right edge and point east. Rotate the token +90 degrees: the emitter and cone should now point south. Turn it off; any original light should be restored. Then repeat with a Candle for 360-degree right-edge emission and check behavior close to a wall.
+
+**Tests:** Node v22 static syntax and mocked origin/directional-source tests passed, including rotation 0/90/180/270, inactive lights, 360-degree lights, no double patches, and existing module flows. **No live Foundry v14 render test, wall test, or multiplayer test has been performed.** The protected API's runtime behavior is a specific verification risk.
+
+**Rollback:** Restore the previous v0.1.5 module folder or disable WoD Light. The new emission offset is entirely client-side and disappears when the module is disabled; no world-data rollback is necessary for this feature. The existing world Items and Ambient Lights remain unchanged.
+
+---
+
 # WoD Light v0.1.5 — 2026-10-17
 
 Foundry v14 Lighting locator improvement for the St. Louis v2 campaign.

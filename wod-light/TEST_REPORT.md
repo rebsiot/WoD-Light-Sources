@@ -1,3 +1,26 @@
+# WoD Light v0.1.6 — Test Report
+
+**Prepared:** 2026-10-17  
+**Environment:** Node.js v22 local mock Foundry harness. No actual Foundry v14 client/server session was available.
+
+## Automated checks
+
+- `node --check` on all JavaScript sources and the smoke script; JSON module manifest validated.
+- `node tests/smoke.mjs` passed for the new token light-origin and emitted-source adapters.
+- Checks include: 3 o'clock edge offset at token 0/90/180/270 degrees; independent x/y/elevation inputs; original positioning and source data for inactive/unrecognized lights; omnidirectional carried items; outward directional-cone data; idempotent patch; no changes to unrelated tokens.
+- Existing coverage preserved for preset installation, SVGs, Item icon migration safeguards, stationarity of world Ambient Lights, Token HUD ownership/toggle, restored prior token lighting, and GM Lighting locator/finder UI.
+
+## Live verification pending — must not conflate with mock success
+
+1. Give a test PC a Flashlight on a simple scene; turn it on. With token facing default rotation 0, check **origin at token 3 o'clock and beam toward the right**.
+2. Rotate token 90/180/270 degrees; confirm emitter follows the token's edge, and **the cone points directly outward**, not perpendicular to the offset.
+3. Switch to Candle or Lantern; verify circular light appears offset to the same edge. Turn it off and verify original lighting.
+4. Test near a wall, while moving, and from a second player's client. If the cone is correctly positioned but points south at rotation 0, the Token `_getLightSourceData` adaptation is not being honored and needs a version-specific correction.
+
+**Evidence:** syntax/mock-tested only; Foundry v14 client rendering and multiplayer remain **unverified**.
+
+---
+
 # WoD Light v0.1.5 — Test Report
 
 **Date:** 2026-10-17  

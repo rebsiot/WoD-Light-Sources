@@ -1,3 +1,21 @@
+# Module 16 — WoD Light v0.1.6 Continuity Update
+
+**Thread:** 16.0 — WoD Light (latest in this conversation).  
+**Module:** `wod-light`. **Release:** v0.1.6. **Date:** 2026-10-17.  
+**Source baseline:** published v0.1.5 and the latest local source.
+
+## Newly approved behavior: held-light edge origin
+
+- User wants **every light a character is holding** to emit at 3 o'clock on the token and point outward. Apply to all **eight** existing portable Items, not stationary light presets.
+- Implemented `scripts/held-lights.js`: guarded client-side wrappers around Foundry v14 `TokenDocument.getLightOrigin` and `Token._getLightSourceData`. Offset native light origin by 0.42 of token's shorter pixel dimension at the token's local right edge, following rotation. Directional beams rotate 90 degrees counterclockwise relative to core token default-south direction to point outward from local 3 o'clock; 360-degree carried lights remain omnidirectional. No extra Ambient Lights.
+- Scoped to token `flags.wod-light.activeId` only if that preset is portable. Normal token lighting, prototype Tokens, vision origins, Actor data and scene fixtures are not modified. Turning off the portable light returns to native origin and previous light config.
+- Hook installed once per client on `init`, guarded if v14 methods are unavailable. The protected Token source adapter is a compatibility risk and **must be verified live**. No migration.
+- Node v22 mock tests cover geometry, rotation and previous behaviors. **Actual Foundry client/renderer and multiplayer tests pending.**
+
+**Immediate test:** In an open scene with a PC carrying a Flashlight, activate Token HUD lighting and rotate 0 then 90 degrees; emitter must begin right and then below while pointing outward. Turn off and verify original lighting, then test a Candle and wall interaction. If source direction is wrong, investigate `_getLightSourceData` runtime behavior, do not change unrelated modules.
+
+## Previous state preserved
+
 # 16 — WoD Light (St. Louis v2)
 
 **Owning conversation:** `16.0 — WoD Light` (user-selected initial thread name)  

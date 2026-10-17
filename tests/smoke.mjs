@@ -43,6 +43,27 @@ globalThis.foundry = {
   utils: { deepClone: structuredClone },
   applications: { api: { DialogV2: { async confirm() { return true; } } } }
 };
+// Minimal Foundry v14 light-origin and emitted-source seams. Mocks do NOT
+// establish live compatibility; they prove that unrelated light sources are safe.
+class MockTokenDocument {
+  constructor({ activeId = null, rotation = 0, width = 1, height = 1 } = {}) {
+    this.width = width; this.height = height; this.rotation = rotation;
+    this.x = 100; this.y = 200; this.elevation = 5;
+    this.light = { angle: activeId === 'flashlight' ? 55 : 360 };
+    this.flags = { 'wod-light': { activeId } };
+  }
+  getFlag(namespace, key) { return this.flags[namespace]?.[key]; }
+  getSize(data = {}) { return { width: (data.width ?? this.width) * 100, height: (data.height ?? this.height) * 100 }; }
+  getLightOrigin(data = {}) {
+    return { x: (data.x ?? this.x) + 50, y: (data.y ?? this.y) + 50, elevation: data.elevation ?? this.elevation };
+  }
+}
+class MockTokenPlaceable {
+  constructor(doc) { this.document = doc; }
+  _getLightSourceData() { return { rotation: this.document.rotation, angle: this.document.light.angle, color: '#fff' }; }
+}
+globalThis.foundry.documents = { TokenDocument: MockTokenDocument };
+globalThis.foundry.canvas = { placeables: { Token: MockTokenPlaceable } };
 globalThis.ui = { notifications: { info(message) { infos.push(message); }, warn(message) { warnings.push(message); }, error(message) { throw Error(message); } } };
 globalThis.game = {
   user: { isGM: true },
@@ -91,6 +112,7 @@ globalThis.fromUuidSync = uuid => {
 const presets = await import('../wod-light/scripts/presets.js');
 const main = await import('../wod-light/scripts/main.js');
 const finder = await import('../wod-light/scripts/finder.js');
+const held = await import('../wod-light/scripts/held-lights.js');
 assert.equal(presets.PRESETS.length, 27);
 assert.equal(new Set(presets.PRESETS.map(p => p.id)).size, 27);
 assert.equal(presets.PRESETS.filter(p => p.portable).length, 8);
@@ -98,6 +120,35 @@ assert.equal(presets.PRESETS.find(p => p.id === 'flashlight').light.angle, 55);
 assert.equal(presets.PRESETS.find(p => p.id === 'ceiling-4x60-warm').light.bright, 18);
 
 await events.get('once:init')();
+// Native origin is unchanged unless our Token HUD has enabled a portable Item.
+const plain = new MockTokenDocument();
+assert.deepEqual(plain.getLightOrigin(), {x:150, y:250, elevation:5});
+const emittedPlain = new MockTokenPlaceable(plain);
+assert.equal(emittedPlain._getLightSourceData().rotation, 0);
+const flashlightHeld = new MockTokenDocument({activeId:'flashlight'});
+const right = flashlightHeld.getLightOrigin();
+assert.deepEqual(right, {x:192, y:250, elevation:5});
+assert.deepEqual(flashlightHeld.getLightOrigin({x:300,y:400,elevation:7}), {x:392,y:450,elevation:7});
+assert.equal(new MockTokenPlaceable(flashlightHeld)._getLightSourceData().rotation,270);
+flashlightHeld.rotation = 90;
+assert.ok(Math.abs(flashlightHeld.getLightOrigin().x-150)<1e-8);
+assert.ok(Math.abs(flashlightHeld.getLightOrigin().y-292)<1e-8);
+assert.equal(new MockTokenPlaceable(flashlightHeld)._getLightSourceData().rotation,0);
+flashlightHeld.rotation = 180;
+assert.ok(Math.abs(flashlightHeld.getLightOrigin().x-108)<1e-8);
+flashlightHeld.rotation = 270;
+assert.ok(Math.abs(flashlightHeld.getLightOrigin().y-208)<1e-8);
+const candleHeld = new MockTokenDocument({activeId:'candle'});
+assert.deepEqual(candleHeld.getLightOrigin(),{x:192,y:250,elevation:5});
+assert.equal(new MockTokenPlaceable(candleHeld)._getLightSourceData().rotation,0); // 360-degree light
+const stationary = new MockTokenDocument({activeId:'desk-60-day'});
+assert.deepEqual(stationary.getLightOrigin(),{x:150,y:250,elevation:5});
+assert.equal(new MockTokenPlaceable(stationary)._getLightSourceData().rotation,0);
+const disabled = new MockTokenDocument({activeId:null});
+assert.deepEqual(disabled.getLightOrigin(),{x:150,y:250,elevation:5});
+assert.deepEqual(held.installHeldLightOffsets(),{origin:true,direction:true}); // no stacked patch
+assert.deepEqual(disabled.getLightOrigin(),{x:150,y:250,elevation:5});
+assert.deepEqual(new MockTokenDocument({activeId:'flashlight'}).getLightOrigin(),{x:192,y:250,elevation:5});
 assert.equal(await main.installPresets(), 27);
 assert.equal(folders.length, 5);
 assert.equal(items.length, 27);
@@ -431,4 +482,4 @@ canvas.isOffscreen = () => false;
 game.user.isGM = true;
 events.get('canvasTearDown')();
 assert.equal(document.body.children.some(e => ['wod-light-pulse','wod-light-live-label','wod-light-continuous-locator'].includes(e.className)), false);
-console.log('PASS: 27 SVG icons, persistent GM-only Lighting locators, movement/viewport and add/remove sync, control/layer shutdown, labels, finder, Level guard, placement, token HUD and restore.');
+console.log('PASS: portable 3-o-clock light origin and outward beam rotation, 27 SVG icons, persistent GM-only Lighting locators, movement/viewport and add/remove sync, control/layer shutdown, labels, finder, Level guard, placement, token HUD and restore.');
