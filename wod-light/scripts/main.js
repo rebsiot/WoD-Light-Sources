@@ -1,13 +1,10 @@
 import { PRESETS, PRESET_BY_ID, GROUPS } from "./presets.js";
+import { registerLightFinderTool, showLightFinder, locateWoDLight, closeLightFinder, refreshLightMarkers, pulseLightPosition } from "./finder.js";
 
 const MOD = "wod-light";
 const ROOT_NAME = "WoD Light";
-const ICONS = {
-  Indoor: "icons/svg/light.svg",
-  Outdoor: "icons/svg/light.svg",
-  Portable: "icons/svg/torch.svg",
-  Effects: "icons/svg/light.svg"
-};
+const LEGACY_ICON_PATHS = new Set(["icons/svg/light.svg", "icons/svg/torch.svg"]);
+const iconForPreset = p => `modules/${MOD}/assets/icons/${p.id}.svg`;
 
 function warn(message, error) {
   console.error(`WoD Light | ${message}`, error);
@@ -45,7 +42,7 @@ export async function installPresets() {
     name: p.name,
     type: "Item", // The native generic equipment Item type in WoD20 7.3.x.
     folder: groups.get(p.group).id,
-    img: ICONS[p.group],
+    img: iconForPreset(p),
     system: {
       description: `<p>${p.portable ? "Portable light: give this Item to a character to enable its Token HUD light control." : "GM light preset: drag this Item onto a scene to create a normal Foundry Ambient Light."}</p><p>Bright: ${p.light.bright}; Dim: ${p.light.dim} scene units; Cone: ${p.light.angle}&deg;.</p>`
     },
@@ -55,6 +52,18 @@ export async function installPresets() {
   await game.settings.set(MOD, "presetsInstalled", true);
   ui.notifications.info(`WoD Light: ${missing.length ? `created ${missing.length} light preset Items` : "light presets already installed"}.`);
   return missing.length;
+}
+
+// Update only old, untouched generic module icons. Never replace artwork a GM
+// or player intentionally chose, and do not modify Items on Actors.
+export async function refreshPresetIcons() {
+  if (!game.user.isGM) return 0;
+  const upgrades = game.items.filter(item => {
+    const preset = PRESET_BY_ID[item.getFlag(MOD, "presetId")];
+    return preset && LEGACY_ICON_PATHS.has(item.img);
+  }).map(item => ({ _id: item.id, img: iconForPreset(PRESET_BY_ID[item.getFlag(MOD, "presetId")]) }));
+  if (upgrades.length) await Item.updateDocuments(upgrades);
+  return upgrades.length;
 }
 
 function getItemFromDrop(data) {
@@ -120,11 +129,17 @@ export async function placePresetOnScene(presetId, x, y, scene = canvas?.scene) 
   let focused = false;
   try { focused = await focusPlacedLight(scene, created[0].id); }
   catch (error) { console.warn("WoD Light | created light but could not select it", error); }
+  // This stays in the GM browser only; no world marker or multiplayer ping.
+  if (canvas?.scene?.id === scene.id) pulseLightPosition(x, y, preset.name);
   if (!shownPlacementHint) {
     shownPlacementHint = true;
     ui.notifications.info(focused
-      ? "WoD Light: new light selected. Drag to move or press Delete; Lighting > Placeables lists existing lights."
-      : "WoD Light: light placed. Use Lighting > Placeables to find and edit it.");
+      ? "WoD Light: new light selected. Drag to move or Delete; use Lighting > Find WoD Lights to find it later."
+      : "WoD Light: light placed. Use Lighting > Find WoD Lights to locate it.");
+  }
+  if (created[0]?.id) {
+    try { await game.settings.set(MOD, "lastPlaced", `${scene.id}:${created[0].id}`); }
+    catch (error) { console.warn("WoD Light | could not remember last placed fixture", error); }
   }
   return true;
 }
@@ -283,11 +298,22 @@ Hooks.once("init", () => {
   game.settings.register(MOD, "presetsInstalled", {
     scope: "world", config: false, type: Boolean, default: false
   });
+  game.settings.register(MOD, "lastPlaced", {
+    scope: "client", config: false, type: String, default: ""
+  });
 });
 
 Hooks.once("ready", async () => {
-  game.wodLight = { installPresets, placePresetOnScene, presets: PRESETS };
-  if (!game.user.isGM || game.settings.get(MOD, "presetsInstalled")) return;
+  game.wodLight = {
+    installPresets, refreshPresetIcons, placePresetOnScene,
+    findLights: showLightFinder, locateLight: locateWoDLight, presets: PRESETS
+  };
+  if (!game.user.isGM) return;
+  try {
+    const count = await refreshPresetIcons();
+    if (count) ui.notifications.info(`WoD Light: updated ${count} original preset icons. Customized images were preserved.`);
+  } catch (error) { warn("could not refresh light icons", error); }
+  if (game.settings.get(MOD, "presetsInstalled")) return;
   try {
     const confirmed = await foundry.applications.api.DialogV2.confirm({
       window: { title: "WoD Light — Install Presets" },
@@ -302,3 +328,9 @@ Hooks.once("ready", async () => {
 
 Hooks.on("dropCanvasData", onCanvasDrop);
 Hooks.on("renderTokenHUD", onTokenHudRender);
+
+Hooks.on("getSceneControlButtons", registerLightFinderTool);
+Hooks.on("canvasPan", refreshLightMarkers);
+Hooks.on("canvasTearDown", closeLightFinder);
+Hooks.on("updateAmbientLight", refreshLightMarkers);
+Hooks.on("deleteAmbientLight", refreshLightMarkers);

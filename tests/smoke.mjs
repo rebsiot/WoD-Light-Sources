@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 // Mock only Foundry's narrowly-used APIs. A successful test is NOT a live Foundry test.
 const events = new Map();
@@ -14,6 +16,8 @@ const lightsCreated = [];
 const placedLights = new Map();
 const selectedLightIds = [];
 const activatedLightTools = [];
+const warnings = [];
+const panCalls = [];
 let uid = 0;
 const record = (input) => ({
   ...input, id: `fake${++uid}`,
@@ -28,13 +32,17 @@ globalThis.Folder = {
   }
 };
 globalThis.Item = {
-  async createDocuments(documents) { for (const doc of documents) items.push(record(doc)); return documents; }
+  async createDocuments(documents) { for (const doc of documents) items.push(record(doc)); return documents; },
+  async updateDocuments(updates) {
+    for (const update of updates) Object.assign(items.find(i => i.id === update._id), update);
+    return updates;
+  }
 };
 globalThis.foundry = {
   utils: { deepClone: structuredClone },
   applications: { api: { DialogV2: { async confirm() { return true; } } } }
 };
-globalThis.ui = { notifications: { info() {}, error(message) { throw Error(message); } } };
+globalThis.ui = { notifications: { info() {}, warn(message) { warnings.push(message); }, error(message) { throw Error(message); } } };
 globalThis.game = {
   user: { isGM: true },
   items: { filter(cb) { return items.filter(cb); }, get(id) { return items.find(i => i.id === id); } },
@@ -47,8 +55,11 @@ globalThis.game = {
 };
 const subwayScene = {
   id: 'scene-subway',
+  levels: { get(id) { return id === 'subway-platform' ? { name: 'Subway Platform' } : { name: 'Other Floor' }; } },
+  lights: { contents: [], get(id) { return this.contents.find(d => d.id === id); } },
   async createEmbeddedDocuments(type, data) {
-    const docs = data.map(() => ({ id: `light-${++uid}` }));
+    const docs = data.map(input => ({ ...input, id: `light-${++uid}`, getFlag(ns, field) { return this.flags?.[ns]?.[field]; } }));
+    this.lights.contents.push(...docs);
     lightsCreated.push({ type, data, docs });
     for (const doc of docs) {
       placedLights.set(doc.id, {
@@ -61,6 +72,9 @@ const subwayScene = {
 globalThis.canvas = {
   scene: subwayScene,
   level: { id: 'subway-platform', elevation: { bottom: -20, top: -10 } },
+  async animatePan(position) { panCalls.push(position); return true; },
+  clientCoordinatesFromCanvas({x,y}) { return {x,y}; },
+  isOffscreen() { return false; },
   lighting: {
     active: false,
     activate({tool}) { this.active = true; activatedLightTools.push(tool); return this; },
@@ -75,6 +89,7 @@ globalThis.fromUuidSync = uuid => {
 
 const presets = await import('../wod-light/scripts/presets.js');
 const main = await import('../wod-light/scripts/main.js');
+const finder = await import('../wod-light/scripts/finder.js');
 assert.equal(presets.PRESETS.length, 27);
 assert.equal(new Set(presets.PRESETS.map(p => p.id)).size, 27);
 assert.equal(presets.PRESETS.filter(p => p.portable).length, 8);
@@ -88,6 +103,22 @@ assert.equal(items.length, 27);
 assert.equal(await main.installPresets(), 0);
 assert.equal(items.length, 27);
 assert.equal(stored['wod-light.presetsInstalled'], true);
+// Every preset has its own packaged, parsed SVG, not a recycled Foundry stock icon.
+const iconDir = resolve(import.meta.dirname, '../wod-light/assets/icons');
+assert.equal(readdirSync(iconDir).filter(f => f.endsWith('.svg')).length, 27);
+for (const item of items) {
+  assert.equal(item.img, `modules/wod-light/assets/icons/${item.getFlag('wod-light', 'presetId')}.svg`);
+  const svg = readFileSync(resolve(iconDir, `${item.getFlag('wod-light','presetId')}.svg`), 'utf-8');
+  assert.match(svg, /<svg .*viewBox="0 0 96 96"/);
+  assert.match(svg, /<\/svg>/);
+}
+// Existing item art upgrades only from the module's original generic defaults.
+items[0].img = 'icons/svg/light.svg';
+items[1].img = 'worlds/campaign/custom-lamp.webp';
+assert.equal(await main.refreshPresetIcons(), 1);
+assert.equal(items[0].img, `modules/wod-light/assets/icons/${items[0].getFlag('wod-light','presetId')}.svg`);
+assert.equal(items[1].img, 'worlds/campaign/custom-lamp.webp');
+assert.equal(await main.refreshPresetIcons(), 0);
 
 const desk = items.find(i => i.getFlag('wod-light', 'presetId') === 'desk-60-day');
 assert.equal(main.onCanvasDrop(canvas, { type: 'Item', uuid: `Item.${desk.id}`, x: 450, y: 700 }), false);
@@ -182,8 +213,9 @@ class FakeElement {
   }
   setAttribute() {}
   addEventListener(name, fn) { this.listeners[name] = fn; }
-  appendChild(child) { this.children.push(child); }
-  remove() {}
+  appendChild(child) { this.children.push(child); child.parentNode = this; }
+  append(...nodes) { nodes.forEach(n => this.appendChild(n)); }
+  remove() { if (this.parentNode) this.parentNode.children = this.parentNode.children.filter(e => e !== this); }
   contains(node) { return this === node || this.children.some(el => el.contains(node)); }
   getBoundingClientRect() { return { left: 100, bottom: 100 }; }
   get offsetWidth() { return 150; }
@@ -248,4 +280,45 @@ assert.equal(twoSourceToken.document.getFlag('wod-light', 'activeId'), 'candle')
 const noLightRoot = new FakeElement(); noLightRoot.left = new FakeElement();
 main.onTokenHudRender({ object: makeToken([]) }, noLightRoot);
 assert.equal(noLightRoot.left.children.length, 0);
-console.log('PASS: presets (27), idempotent install, scene drops, current Level placement, immediate native Lighting selection, token restore/switch, ownership, HUD injection and toggle.');
+// v14 Lighting native control and marker/list lifecycle, including Level guards.
+const controls = { lighting: { name: 'lighting', tools: { select: { order: 1 } } } };
+events.get('getSceneControlButtons')(controls);
+assert.equal(controls.lighting.tools.wodLightFind.button, true);
+assert.equal(controls.lighting.tools.wodLightFind.visible, true);
+assert.equal(finder.listWoDLights().length, 2);
+canvas.level = { id: 'subway-platform', elevation: { bottom: -20 } };
+const legacy = { id:'older-light', x:900, y:150, name:'Streetlight - Sodium Orange',
+  levels:['old-floor'], getFlag(ns, field) {return field === 'presetId' ? 'street-sodium' : null;} };
+subwayScene.lights.contents.push(legacy);
+assert.equal(finder.listWoDLights().length, 3);
+assert.equal(finder.otherLevel(legacy), true);
+assert.equal(await finder.locateWoDLight('older-light'), false);
+assert.match(warnings.at(-1), /Other Floor/);
+assert.equal(finder.pulseLightPosition(450,700,'Desk Lamp'), true);
+assert.equal(document.body.children.some(e => e.className === 'wod-light-pulse'), true);
+assert.equal(finder.showLightFinder(), true);
+const finderPanel = document.body.children.find(e => e.className === 'wod-light-finder');
+const markerLayer = document.body.children.find(e => e.className === 'wod-light-map-pins');
+assert.ok(finderPanel && markerLayer);
+assert.equal(markerLayer.children.length, 3);
+assert.equal(markerLayer.children.find(e => e.dataset.lightId === legacy.id).hidden, true);
+const filterInput = finderPanel.children.find(e => e.className === 'wod-light-finder-search');
+filterInput.value = 'office';
+filterInput.listeners.input();
+const shown = markerLayer.children.filter(e => !e.hidden);
+assert.equal(shown.length, 1);
+const target = subwayScene.lights.contents[1];
+assert.equal(await finder.locateWoDLight(target.id), true);
+assert.equal(panCalls.at(-1).x, 90);
+assert.ok(selectedLightIds.includes(target.id));
+assert.equal(document.body.children.some(e => e.className === 'wod-light-finder'), false);
+assert.equal(finder.showLightFinder(), true);
+assert.equal(finder.showLightFinder(), false); // click tool again closes it
+finder.closeLightFinder();
+game.user.isGM = false;
+const playerControls = { lighting: { name:'lighting', tools:{} } };
+finder.registerLightFinderTool(playerControls);
+assert.equal(playerControls.lighting.tools.wodLightFind, undefined);
+assert.equal(finder.showLightFinder(), false);
+game.user.isGM = true;
+console.log('PASS: 27 distinct SVGs, targeted icon upgrade, v14 Lighting finder and viewport pins, Level guard, drop/selection, token HUD and restore.');

@@ -1,3 +1,24 @@
+# WoD Light v0.1.2 — 2026-10-17
+
+Campaign usability + readable icon update for Foundry v14 / WoD20.
+
+- Shipped 27 individually packaged, original SVG lighting pictograms with bold silhouettes and legible warm/daylight differentiation, validated in a 24px/64px contact sheet.
+- Existing **world** preset Items using only the module's old generic icon paths get their `img` updated on GM launch. Custom images and Items already attached to Actors are not modified.
+- **Find WoD Lights** button added to native Lighting tools. Clicking it opens a small filterable list of this module's scene lights and temporary, high-contrast numbered on-map markers. Clicking a row/pin recenters, selects, and pulses that light. Handles wrong-Level lights with explicit guidance.
+- New light drops now show an amber local locator ring and name for ~2 seconds, on top of v0.1.1's auto-select behavior.
+- Last placed light is prioritized in the finder for the same scene. Marker UI is strictly local GM UI; it creates no Tiles and broadcasts no network pings.
+- Existing Ambient Light documents, their Level/elevation and config, Token HUD behavior and player inventory remain unchanged. No mass migration.
+
+**Upgrade:** Back up the campaign world, update through the stable module manifest and hard-refresh. Once a GM opens the world, only the original generic world Item icons are updated. Don't reimport preset Items; the existing IDs are preserved. In Lighting, use **Find WoD Lights** to locate the previous Office Fluorescent on the subway map. For older unassigned or other-Level light documents, switch Levels or use native Lighting > Placeables.
+
+**Test status:** Node v22 syntax checks, simulated drop/HUD/GM finder workflow, Level and item image preservation checks, 27 SVG XML parses and 24/64px visual icon review passed. **Actual Foundry v14 browser/live multiplayer test has not been performed.** First live test: open the Subway scene, Lighting > Find WoD Lights, locate the Office Fluorescent, then drag another office fixture to test pulse/auto-selection.
+
+**Known limitations:** The finder uses Foundry v14 tool hook and native Lighting APIs; pending live confirmation in this campaign. The finder only lists WoD Light-tagged Ambient Lights, not every manually placed Foundry light. It does not automatically switch the viewed Level, move older lights, or modify customized icon art / Actor inventory images. Other baseline caveats below still apply.
+
+**Rollback:** Back up the world, stop Foundry, restore v0.1.1 module folder or disable v0.1.2. Existing light documents remain. New default world Item `img` paths will be invalid if v0.1.2 icon files are removed; restore a world snapshot or manually reset those few icon paths if needed. Do not delete/reimport existing world Items to roll back.
+
+---
+
 # WoD Light v0.1.1 — 2026-10-17
 
 Campaign usability fix for Foundry VTT v14 and WoD20.

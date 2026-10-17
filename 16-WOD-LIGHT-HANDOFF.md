@@ -3,7 +3,7 @@
 **Owning conversation:** `16.0 — WoD Light` (user-selected initial thread name)  
 **Next development conversation:** `16.1 — WoD Light Improvements`  
 **Created:** 2026-10-16  
-**Status:** v0.1.1 campaign patch ready; v0.1.0 map placement user-confirmed, v0.1.1 Level-aware selection **mock-tested and live Foundry verification pending**.
+**Status:** v0.1.2 implemented and local tests passed; user confirmed initial map placement issue; finder + SVG art **live Foundry verification pending**.
 
 ## Purpose and settled requirements
 
@@ -14,6 +14,17 @@
 - Giving a portable preset Item to an Actor causes a Torch-like lightbulb to appear in the upper-left Token HUD; click on/off, right-click to choose carried source.
 - A flashlight emits a cone of light which should turn with token rotation. Players should never have to edit token light settings.
 - Native WoD20 Item type is exactly `Item`; do not change Actor schema or the other project's modules.
+
+## v0.1.2 — 2026-10-17
+
+- User requested legible, identifiable source images (not scribbles) and a simple way to signal/find placed lights much later, without a GM management dashboard.
+- Added 27 original SVG Item thumbnails (`wod-light/assets/icons/{presetId}.svg`) designed as bold, high-contrast silhouettes. Reviewed at 64px and 24px with a contact sheet; built-in shape variants cover indoor, outdoor, portable, effects lights, and warm/daylight distinctions. No copyrighted or Patreon art used.
+- World Item image upgrade is **selective:** only module-tagged world Items whose `img` is the original generic `icons/svg/light.svg` / `icons/svg/torch.svg` are updated on GM launch. Customized Item images and all embedded Actor Items remain unchanged. No forced migration or world Scene edit.
+- Hook `getSceneControlButtons` adds one **Find WoD Lights** button to native v14 Lighting tools. Clicking opens a compact, searchable, GM-only list and local on-map numbered amber markers. Choosing a light pans and selects its native Ambient Light, with a local pulse/label. Lights on a different viewed Level are reported and never silently relocated.
+- A fresh drag-to-scene automatically shows an amber pulse and short name label. Existing v0.1.1 auto-selection/Level behavior remains.
+- Finder uses `scene.lights`, native `canvas.lighting`, `canvas.animatePan`, `canvas.clientCoordinatesFromCanvas`, and `canvasPan` hooks. No alternate lighting engine, manager panel, world Tiles, or network pings.
+- Full ZIP for direct install and GitHub release v0.1.2; same module ID `wod-light` and same stable manifest path. Source tests and icon checks passed; **live Foundry v14 scene/player tests are not yet done.**
+- Next test: load Subway, activate Lighting > Find WoD Lights, find and select the existing Office Fluorescent; then drop a new one and check labeled pulse + easy movement.
 
 ## v0.1.1 — 2026-10-17 (this conversation)
 

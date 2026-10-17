@@ -15,3 +15,41 @@
 .wod-light-chooser button:hover, .wod-light-chooser button:focus-visible {
   background: var(--color-warm-2, #765936); color: white;
 }
+
+
+/* Finder: a small Lighting-tool popover, not a second GM control panel. */
+.wod-light-finder {
+  position: fixed; top: 76px; left: 120px; z-index: 95;
+  width: min(330px, calc(100vw - 150px)); max-height: min(480px, 74vh);
+  overflow: hidden; display: flex; flex-direction: column;
+  padding: 12px; gap: 8px;
+  background: #152434; color: #f2f6fc; border: 1px solid #7996ad;
+  border-radius: 9px; box-shadow: 0 10px 42px #02070ccc;
+  font-family: var(--font-primary, sans-serif);
+}
+.wod-light-finder-header { display:flex; justify-content:space-between; align-items:center; font-size:15px; }
+.wod-light-close { width:28px; height:28px; min-height:28px; background:#304557; color:#fff; border:0; border-radius:5px; font-size:22px; cursor:pointer; }
+.wod-light-finder-help { font-size:12px; line-height:1.4; margin:0; color:#d5e4ef; }
+.wod-light-finder-search { width:100%; min-height:34px; padding:6px 9px; color:#fff; background:#253a4c; border:1px solid #647f92; border-radius:6px; }
+.wod-light-finder-list { overflow-y:auto; min-height:48px; max-height:335px; display:flex; flex-direction:column; gap:4px; }
+.wod-light-finder-row { display:flex; align-items:center; gap:9px; background:#263b4e; border:1px solid transparent; border-radius:6px; color:#fff; cursor:pointer; text-align:left; padding:5px; min-height:49px; }
+.wod-light-finder-row:hover, .wod-light-finder-row:focus-visible { border-color:#ffd08b; background:#36546a; outline:2px solid #ffd08b; outline-offset:0; }
+.wod-light-row-icon { width:36px; height:36px; flex-shrink:0; }
+.wod-light-row-labels { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.wod-light-row-name { font-size:13px; font-weight:650; white-space:normal; overflow-wrap:anywhere; }
+.wod-light-row-labels small { font-size:11px; color:#c7d9e7; }
+.wod-light-finder-empty { margin:12px 0; color:#d9e5eb; font-size:12px; }
+.wod-light-map-pins { position:fixed; inset:0; z-index:90; pointer-events:none; }
+.wod-light-map-pin { position:fixed; transform:translate(-50%,-50%); width:39px; height:39px; border-radius:50%; pointer-events:auto;
+  background:#1b2e42; border:4px solid #ffd08b; color:#fff; font-weight:800; font-size:14px;
+  box-shadow:0 0 0 2px #182536, 0 0 14px #000b; cursor:pointer; }
+.wod-light-map-pin:hover, .wod-light-map-pin:focus-visible { background:#486d83; outline:3px solid #fff; }
+.wod-light-pulse { position:fixed; z-index:100; transform:translate(-50%,-50%); pointer-events:none; }
+.wod-light-pulse-ring { display:block; width:48px; height:48px; border-radius:50%; border:5px solid #ffd08b; box-shadow:0 0 0 3px #17283a, 0 0 19px #ffd08b;
+  animation:wod-light-locate 1.0s ease-out 2 forwards; }
+.wod-light-pulse-label { position:absolute; bottom:57px; left:50%; transform:translateX(-50%); white-space:nowrap; max-width:300px; overflow:hidden; text-overflow:ellipsis;
+  background:#152434; color:#fff; padding:6px 11px; border:2px solid #ffd08b; border-radius:5px; font-size:13px; font-weight:750; box-shadow:0 3px 15px #000b; }
+@keyframes wod-light-locate { from {transform:scale(.45);opacity:1} to {transform:scale(1.8);opacity:0} }
+@media(prefers-reduced-motion:reduce) { .wod-light-pulse-ring {animation:none;} }
+
+.wod-light-finder-row[hidden], .wod-light-map-pin[hidden] { display:none !important; }

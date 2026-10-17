@@ -29,7 +29,9 @@ jobs:
           set -euo pipefail
           node --check wod-light/scripts/main.js
           node --check wod-light/scripts/presets.js
+          node --check wod-light/scripts/finder.js
           node tests/smoke.mjs
+          test "$(find wod-light/assets/icons -maxdepth 1 -name '*.svg' | wc -l)" -eq 27
           VERSION="$(node -p "require('./wod-light/module.json').version")"
           TAG="v${VERSION}"
           node - <<'NODE'

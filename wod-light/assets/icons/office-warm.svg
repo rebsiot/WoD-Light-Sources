@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="office warm">
+  <rect width="96" height="96" rx="19" fill="#132537"/>
+  <rect x="3" y="3" width="90" height="90" rx="17" fill="none" stroke="#36536C" stroke-width="2"/>
+  <circle cx="48" cy="48" r="34" fill="#FFD08B" opacity=".075"/>
+  <rect x="17" y="24" width="62" height="48" rx="7" fill="#EDF5FB"/><rect x="24" y="32" width="48" height="7" rx="2" fill="#FFD08B"/><rect x="24" y="44" width="48" height="7" rx="2" fill="#FFD08B"/><rect x="24" y="56" width="48" height="7" rx="2" fill="#FFD08B"/>
+  <rect x="36" y="86" width="24" height="3" rx="1.5" fill="#FFD08B"/>
+</svg>
