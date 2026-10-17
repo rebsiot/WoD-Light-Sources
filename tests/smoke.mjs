@@ -304,22 +304,73 @@ const markerLayer = document.body.children.find(e => e.className === 'wod-light-
 assert.ok(finderPanel && markerLayer);
 assert.equal(markerLayer.children.length, 3);
 assert.equal(markerLayer.children.find(e => e.dataset.lightId === legacy.id).hidden, true);
+// Lighting activation creates one persistent ring per visible WoD fixture.
 controls.lighting.tools.select.onChange({}, true);
 await new Promise(resolve => setImmediate(resolve));
-assert.equal(document.body.children.filter(e => e.className === 'wod-light-pulse').length >= 2, true);
-// v14 fires SceneControl.onChange when switching into the Lighting layer and
-// onToolChange when activating Select within the already-active Lighting layer.
+const locators = () => document.body.children.filter(e => e.className === 'wod-light-continuous-locator');
+assert.equal(locators().length, 2);
+assert.equal(locators().every(e => e.dataset.lightId !== legacy.id), true);
+const originalMarkers = locators().slice();
 assert.equal(typeof controls.lighting.onChange, 'function');
 assert.equal(typeof controls.lighting.onToolChange, 'function');
-const pulsesBeforeDuplicate = document.body.children.filter(e => e.className === 'wod-light-pulse').length;
 controls.lighting.onChange({}, true);
 controls.lighting.onToolChange({}, {name:'select'}, true);
 await new Promise(resolve => setImmediate(resolve));
-assert.equal(document.body.children.filter(e => e.className === 'wod-light-pulse').length, pulsesBeforeDuplicate);
-await new Promise(resolve => setTimeout(resolve, 365));
+assert.deepEqual(locators(), originalMarkers); // No duplicate nodes or restarted pulses.
+controls.lighting.onToolChange({}, {name:'create'}, true);
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(locators().length, 2); // Other tools under Lighting keep pulsing.
+// Refreshes follow canvas pan, document moves, new lights and deletion.
+const moving = subwayScene.lights.contents[0];
+moving.x = 480;
+events.get('updateAmbientLight')();
+assert.equal(locators().find(e => e.dataset.lightId === moving.id).style.left, '480px');
+canvas.isOffscreen = ({x}) => x > 200;
+events.get('canvasPan')();
+assert.equal(locators().length, 1);
+canvas.isOffscreen = () => false;
+events.get('canvasPan')();
+assert.equal(locators().length, 2);
+const added = (await subwayScene.createEmbeddedDocuments('AmbientLight', [{
+  name:'New Office Light',x:175,y:235,flags:{'wod-light':{presetId:'office-day'}}
+}]))[0];
+events.get('createAmbientLight')();
+assert.equal(locators().length, 3);
+subwayScene.lights.contents.splice(subwayScene.lights.contents.findIndex(l => l.id === added.id),1);
+events.get('deleteAmbientLight')();
+assert.equal(locators().length, 2);
+// Switching controls removes every ring and temporary flash immediately.
+controls.lighting.onChange({}, false);
+assert.equal(locators().length, 0);
+assert.equal(document.body.children.some(e => e.className === 'wod-light-pulse'), false);
 controls.lighting.onChange({}, true);
 await new Promise(resolve => setImmediate(resolve));
-assert.ok(document.body.children.filter(e => e.className === 'wod-light-pulse').length > pulsesBeforeDuplicate);
+assert.equal(locators().length, 2);
+// Rapid activate/deactivate/reactivate in one frame must not lose the locator.
+controls.lighting.onChange({}, true);
+controls.lighting.onChange({}, false);
+controls.lighting.onChange({}, true);
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(locators().length, 2);
+// Core layer lifecycle hooks cover shortcuts or other modules switching layers.
+events.get('activateCanvasLayer')({name:'TokensLayer'});
+assert.equal(locators().length, 0);
+events.get('activateCanvasLayer')(canvas.lighting);
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(locators().length, 2);
+events.get('deactivateLightingLayer')();
+assert.equal(locators().length, 0);
+events.get('activateCanvasLayer')(canvas.lighting);
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(locators().length, 2);
+// A stale frame scheduled before scene teardown must never re-create markers.
+controls.lighting.onChange({}, true);
+events.get('canvasTearDown')();
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(locators().length, 0);
+events.get('activateCanvasLayer')(canvas.lighting);
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(locators().length, 2);
 // Hover and selection name overlays must be readable and must not cover native controls.
 const hoverTarget = subwayScene.lights.contents[1];
 assert.equal(finder.onCanvasPointerMove({target:{closest: () => true},clientX:90,clientY:120}), undefined);
@@ -342,10 +393,16 @@ assert.equal(document.body.children.some(e => e.className === 'wod-light-live-la
 const css = readFileSync(resolve(import.meta.dirname, '../wod-light/styles/wod-light.css'), 'utf-8');
 assert.match(css, /width: 68px/);
 assert.match(css, /\.wod-light-live-label/);
-const filterInput = finderPanel.children.find(e => e.className === 'wod-light-finder-search');
+assert.match(css, /wod-light-continuous-ring/);
+assert.match(css, /animation: wod-light-breathe 2\.8s ease-in-out infinite/);
+assert.match(css, /prefers-reduced-motion/);
+assert.equal(finder.showLightFinder(), true); // Leaving Lighting closed the old finder.
+const currentFinderPanel = document.body.children.find(e => e.className === 'wod-light-finder');
+const currentMarkerLayer = document.body.children.find(e => e.className === 'wod-light-map-pins');
+const filterInput = currentFinderPanel.children.find(e => e.className === 'wod-light-finder-search');
 filterInput.value = 'office';
 filterInput.listeners.input();
-const shown = markerLayer.children.filter(e => !e.hidden);
+const shown = currentMarkerLayer.children.filter(e => !e.hidden);
 assert.equal(shown.length, 1);
 const target = subwayScene.lights.contents[1];
 assert.equal(await finder.locateWoDLight(target.id), true);
@@ -360,7 +417,12 @@ const playerControls = { lighting: { name:'lighting', tools:{} } };
 finder.registerLightFinderTool(playerControls);
 assert.equal(playerControls.lighting.tools.wodLightFind, undefined);
 assert.equal(finder.showLightFinder(), false);
+assert.equal(finder.refreshContinuousLocators(), 0);
+assert.equal(locators().length, 0);
 game.user.isGM = true;
+events.get('activateCanvasLayer')(canvas.lighting);
+await new Promise(resolve => setImmediate(resolve));
+assert.equal(locators().length, 2);
 assert.equal(finder.pulseWoDLightsOnViewedLevel() >= 2, true);
 canvas.isOffscreen = () => true;
 assert.equal(finder.pulseWoDLightsOnViewedLevel(), 0);
@@ -368,5 +430,5 @@ assert.match(infos.at(-1), /no fixtures visible/i);
 canvas.isOffscreen = () => false;
 game.user.isGM = true;
 events.get('canvasTearDown')();
-assert.equal(document.body.children.some(e => e.className === 'wod-light-pulse' || e.className === 'wod-light-live-label'), false);
-console.log('PASS: 27 SVG icons, v14 Lighting activation/Select pulses, nonblocking hover and selection labels, finder, Level guard, placement, token HUD and restore.');
+assert.equal(document.body.children.some(e => ['wod-light-pulse','wod-light-live-label','wod-light-continuous-locator'].includes(e.className)), false);
+console.log('PASS: 27 SVG icons, persistent GM-only Lighting locators, movement/viewport and add/remove sync, control/layer shutdown, labels, finder, Level guard, placement, token HUD and restore.');

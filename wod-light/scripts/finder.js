@@ -9,8 +9,13 @@ const activePulses = new Set();
 let hoverLightId = null;
 let selectedLightId = null;
 let activeLabel = null;
-let lastSelectPulse = 0;
 let scheduledSelectPulse = false;
+// While the GM is in the Lighting controls, one CSS-animated locator per
+// visible WoD Light persists without JS intervals, world documents, or Tiles.
+const continuousLocators = new Map();
+let continuousSceneId = null;
+let lightingControlEngaged = null;
+let locatorGeneration = 0;
 
 function eligible() { return Boolean(game.user?.isGM && canvas?.scene); }
 function allLights() {
@@ -69,12 +74,19 @@ function positionOf(x, y) {
 
 // Labels are informational DOM overlays, not clickable Tiles or light placeables.
 // Keep only one on screen. Native Lighting controls remain unobstructed.
+function lightingControlActive() {
+  if (!eligible() || lightingControlEngaged === false) return false;
+  if (canvas?.lighting?.active === false) return false;
+  const activeControl = ui?.controls?.control?.name;
+  if (activeControl && activeControl !== "lighting") return false;
+  // In v14 the control callback can run before the UI/Layer state settles.
+  return lightingControlEngaged === true || activeControl === "lighting" || canvas?.lighting?.active === true;
+}
+
 function lightingSelectActive() {
-  if (!eligible() || canvas?.lighting?.active === false) return false;
-  const controls = ui?.controls;
-  if (controls?.control?.name && controls.control.name !== "lighting") return false;
-  if (controls?.tool?.name && controls.tool.name !== "select") return false;
-  return true;
+  if (!lightingControlActive()) return false;
+  const tool = ui?.controls?.tool?.name;
+  return !tool || tool === "select";
 }
 
 function eligibleLightById(id) {
@@ -159,24 +171,76 @@ export function onCanvasPointerMove(event) {
   if (nearest !== hoverLightId) { hoverLightId = nearest; refreshLightLabel(); }
 }
 
+function clearContinuousLocators() {
+  for (const marker of continuousLocators.values()) marker.remove();
+  continuousLocators.clear();
+  continuousSceneId = null;
+}
+
+/**
+ * Reconcile unobtrusive, infinite CSS pulses with the current view. No periodic
+ * polling: canvasPan, create/update/delete AmbientLight, Level/view changes,
+ * and Lighting activation drive this function. All elements ignore pointers.
+ */
+export function refreshContinuousLocators() {
+  if (!lightingControlActive() || typeof document === "undefined") {
+    clearContinuousLocators();
+    return 0;
+  }
+  if (continuousSceneId !== canvas.scene.id) {
+    clearContinuousLocators();
+    continuousSceneId = canvas.scene.id;
+  }
+  const visible = new Set();
+  for (const doc of listWoDLights()) {
+    if (otherLevel(doc) || canvas.isOffscreen?.({ x: doc.x, y: doc.y })) continue;
+    const p = positionOf(doc.x, doc.y);
+    if (!p) continue;
+    visible.add(doc.id);
+    let marker = continuousLocators.get(doc.id);
+    if (!marker) {
+      marker = document.createElement("div");
+      marker.className = "wod-light-continuous-locator";
+      marker.dataset.lightId = doc.id;
+      marker.dataset.sceneId = canvas.scene.id;
+      const ring = document.createElement("span");
+      ring.className = "wod-light-continuous-ring";
+      marker.appendChild(ring);
+      marker.setAttribute("aria-hidden", "true");
+      document.body.appendChild(marker);
+      continuousLocators.set(doc.id, marker);
+    }
+    marker.style.left = `${p.x}px`;
+    marker.style.top = `${p.y}px`;
+  }
+  for (const [id, marker] of continuousLocators) {
+    if (!visible.has(id)) { marker.remove(); continuousLocators.delete(id); }
+  }
+  return continuousLocators.size;
+}
+
 export function refreshLightOverlays() {
   for (const node of activePulses) {
     const x = Number(node.dataset.worldX), y = Number(node.dataset.worldY);
     const p = positionOf(x, y);
     if (p) { node.style.left = `${p.x}px`; node.style.top = `${p.y}px`; }
   }
+  refreshContinuousLocators();
   return refreshLightLabel();
 }
 
 export function closeLightOverlays() {
+  // Invalidate any next-frame activation callback from the previous scene.
+  locatorGeneration++;
+  clearContinuousLocators();
+  for (const node of activePulses) node.remove();
+  activePulses.clear();
   closeLightFinder();
   activeLabel?.remove();
   activeLabel = null;
   hoverLightId = selectedLightId = null;
-  lastSelectPulse = 0;
   scheduledSelectPulse = false;
-  for (const node of activePulses) node.remove();
-  activePulses.clear();
+  lightingControlEngaged = null;
 }
 
 export function pulseLightPosition(x, y, name = "Light placed", options = {}) {
@@ -214,21 +278,45 @@ export function pulseWoDLightsOnViewedLevel() {
 
 function scheduleSelectPulse() {
   if (scheduledSelectPulse || !game.user?.isGM) return;
-  // Both control activation and tool selection may happen in the same UI action.
-  // Suppress the duplicate animation without suppressing later explicit selections.
-  if (Date.now() - lastSelectPulse < 350) return;
   scheduledSelectPulse = true;
+  const generation = locatorGeneration;
   const run = () => {
+    if (generation !== locatorGeneration) return;
     scheduledSelectPulse = false;
-    if (!lightingSelectActive()) return;
-    lastSelectPulse = Date.now();
-    pulseWoDLightsOnViewedLevel();
+    refreshContinuousLocators();
     refreshLightLabel();
   };
-  // v14 may activate the layer after calling its change handler. Wait for
-  // its next frame so the canvas and control palette are settled.
+  // Core can change the active layer after invoking the controls callback.
   if (typeof requestAnimationFrame === "function") requestAnimationFrame(run);
   else queueMicrotask(run);
+}
+
+function deactivateLightingLocators() {
+  lightingControlEngaged = false;
+  locatorGeneration++;
+  scheduledSelectPulse = false;
+  clearContinuousLocators();
+  for (const node of activePulses) node.remove();
+  activePulses.clear();
+  closeLightFinder();
+  activeLabel?.remove();
+  activeLabel = null;
+  hoverLightId = selectedLightId = null;
+}
+
+
+// Native InteractionLayer lifecycle hooks catch control changes made by
+// keyboard shortcuts or other modules, not just SceneControls button clicks.
+export function onCanvasLayerActivated(layer) {
+  if (!game.user?.isGM) return;
+  if (layer === canvas?.lighting) {
+    lightingControlEngaged = true;
+    scheduleSelectPulse();
+  } else deactivateLightingLocators();
+}
+
+export function onLightingLayerDeactivated() {
+  deactivateLightingLocators();
 }
 
 export function closeLightFinder() {
@@ -350,25 +438,23 @@ export function registerLightFinderTool(controls) {
   const lighting = controls?.lighting ?? Object.values(controls ?? {}).find(c => c?.name === "lighting");
   if (!lighting?.tools) return;
 
-  // Foundry v14 activates the Lighting *control* separately from its Select
-  // *tool*. Listen to both paths. SceneControl callbacks take (event, active),
-  // while onToolChange takes (event, tool, active).
+  // v14 activates the Lighting control separately from its Select tool.
+  // Both activation paths reconcile one persistent locator per light; leaving
+  // Lighting tears all of them down immediately, even before the UI updates.
   if (!lighting._wodLightWrapped) {
     const originalOnChange = lighting.onChange;
     lighting.onChange = (...args) => {
       const result = typeof originalOnChange === "function" ? originalOnChange(...args) : undefined;
-      if (args[1] === true && (!lighting.activeTool || lighting.activeTool === "select")) scheduleSelectPulse();
-      else if (args[1] === false) {
-        hoverLightId = selectedLightId = null;
-        queueMicrotask(() => refreshLightLabel());
-      }
+      if (args[1] === true) {
+        lightingControlEngaged = true;
+        scheduleSelectPulse();
+      } else if (args[1] === false) deactivateLightingLocators();
       return result;
     };
     const originalToolChange = lighting.onToolChange;
     lighting.onToolChange = (...args) => {
       const result = typeof originalToolChange === "function" ? originalToolChange(...args) : undefined;
-      if (args[1]?.name === "select" && args[2] === true) scheduleSelectPulse();
-      else if (args[2] === true) refreshLightLabel();
+      if (args[2] === true) scheduleSelectPulse();
       return result;
     };
     lighting._wodLightWrapped = true;
@@ -379,10 +465,6 @@ export function registerLightFinderTool(controls) {
     selectTool.onChange = (...args) => {
       const result = typeof originalOnChange === "function" ? originalOnChange(...args) : undefined;
       if (args[1] === true) scheduleSelectPulse();
-      else if (args[1] === false) {
-        hoverLightId = selectedLightId = null;
-        queueMicrotask(() => refreshLightLabel());
-      }
       return result;
     };
     selectTool._wodLightWrapped = true;

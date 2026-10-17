@@ -1,5 +1,5 @@
 import { PRESETS, PRESET_BY_ID, GROUPS } from "./presets.js";
-import { registerLightFinderTool, showLightFinder, locateWoDLight, closeLightOverlays, refreshLightMarkers, pulseLightPosition, onLightHover, onLightControl, onCanvasPointerMove, onCanvasPointerUp } from "./finder.js";
+import { registerLightFinderTool, showLightFinder, locateWoDLight, closeLightOverlays, refreshLightMarkers, pulseLightPosition, onLightHover, onLightControl, onCanvasPointerMove, onCanvasPointerUp, onCanvasLayerActivated, onLightingLayerDeactivated } from "./finder.js";
 
 const MOD = "wod-light";
 const ROOT_NAME = "WoD Light";
@@ -332,6 +332,10 @@ Hooks.on("renderTokenHUD", onTokenHudRender);
 Hooks.on("getSceneControlButtons", registerLightFinderTool);
 Hooks.on("canvasPan", refreshLightMarkers);
 Hooks.on("canvasTearDown", closeLightOverlays);
+Hooks.on("canvasReady", refreshLightMarkers);
+Hooks.on("activateCanvasLayer", onCanvasLayerActivated);
+Hooks.on("deactivateLightingLayer", onLightingLayerDeactivated);
+Hooks.on("createAmbientLight", refreshLightMarkers);
 Hooks.on("updateAmbientLight", refreshLightMarkers);
 Hooks.on("deleteAmbientLight", refreshLightMarkers);
 Hooks.on("hoverAmbientLight", onLightHover);

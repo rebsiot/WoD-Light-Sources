@@ -85,3 +85,30 @@
 @media (prefers-reduced-motion: reduce) {
   .wod-light-pulse-ring { animation: none; }
 }
+
+/* v0.1.5: gentle, persistent GM-only locator for the entire time Lighting is active.
+   Intentionally non-interactive so native Ambient Lights remain draggable. */
+.wod-light-continuous-locator {
+  position: fixed;
+  z-index: 92;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.wod-light-continuous-ring {
+  display: block;
+  box-sizing: border-box;
+  width: 68px;
+  height: 68px;
+  border: 5px solid #ffd08b;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffe9a5 0 4px, transparent 5px);
+  box-shadow: 0 0 0 2px #182536, 0 0 18px #ffd08b9c;
+  animation: wod-light-breathe 2.8s ease-in-out infinite;
+}
+@keyframes wod-light-breathe {
+  0%, 100% { transform: scale(.64); opacity: .9; }
+  50% { transform: scale(1.16); opacity: .3; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wod-light-continuous-ring { animation: none; opacity: .8; transform: scale(.78); }
+}

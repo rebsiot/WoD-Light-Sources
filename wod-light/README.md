@@ -1,12 +1,12 @@
-# WoD Light v0.1.4
+# WoD Light v0.1.5
 
 A small **private St. Louis v2 campaign module** for Foundry VTT v14 + World of Darkness 20th (`worldofdarkness`, approximately 7.3.x). No Torch dependency, GM panel, custom lighting engine or battery bookkeeping.
 
 
 
-## Improved locator behavior in v0.1.4
+## Persistent locator behavior in v0.1.5
 
-- **Open Lighting / choose Select:** visible WoD Light fixtures briefly pulse with a large, high-contrast amber ring (68px; approximately 3 seconds). Works when switching to Lighting from another layer **and** when choosing Select within Lighting.
+- **Open Lighting:** every visible WoD Light fixture gets a continuously pulsing, amber 68px locator until you leave the **Lighting** controls. Selecting or using another Lighting subtool does not interrupt the animation. No need to reopen Find WoD Lights to keep the fixtures visible.
 - **Hover near a light's native control:** a readable name appears just above it. **Select the light:** its name and a short Move/Delete hint remain visible. These labels are never interactive or persistent scene objects.
 - The **Find WoD Lights** searchable list and map markers remain available for harder-to-find fixtures and previous placements. No additional GM dashboard.
 - Scene Level filtering applies only when the scene actually has Levels. Ordinary scenes behave normally, with no Level setup required.
@@ -31,7 +31,7 @@ and install. This GitHub Release manifest points to the matching installable ZIP
 
 Open the **Items** directory, expand `WoD Light`, and drag a preset Item onto the canvas. The module creates a **normal Ambient Light** at the dropped position, on the currently viewed **Level** in Foundry v14.
 
-**After placing a light, Foundry's Lighting layer opens, the new light is selected, and a large amber local locator pulse names it for approximately three seconds.** Drag the selected control to move it, press **Delete** to remove just that light, or double-click to edit it. This uses Foundry's native controls, not a separate management panel. The Item is a placement template, not a tile or token.
+**After placing a light, Foundry's Lighting layer opens, the new light is selected, and a large amber pulse briefly names it. While Lighting remains open, a gentle ring keeps pulsing at each visible WoD Light fixture.** Drag the selected control to move it, press **Delete** to remove just that light, or double-click to edit it. This uses Foundry's native controls, not a separate management panel. The Item is a placement template, not a tile or token.
 
 **Finding an older light:** Activate the native **Lighting** controls and click **Find WoD Lights** (magnifying glass icon). A small, searchable list of **WoD Light-created** fixtures appears; **large numbered amber markers** temporarily identify their positions on the map, including those from older versions. Click a row/marker to pan, select and pulse that light. Close the list to clear markers. Markers never exist as Tiles or world documents, and they are visible only to the GM using the tool. The finder prioritizes the last light placed in this client.
 
@@ -57,7 +57,7 @@ Only the token's owner or the GM can operate the button. No equipment Item => no
 ## Notes / limitations
 
 - When working on a v14 multi-Level Scene, new Ambient Lights are assigned to the currently viewed Level and its bottom elevation. This needs live verification in the subway scene.
-- New light selection depends on the native Lighting layer drawing the created light; if selection is unavailable, use **Find WoD Lights** or the native Placeables tab. Finder UI depends on Foundry v14 `getSceneControlButtons` and remains live-unverified.
+- New light selection depends on the native Lighting layer drawing the created light; if selection is unavailable, use **Find WoD Lights** or the native Placeables tab. Persistent locators follow canvas pans and light document updates, and disappear when leaving Lighting; they never block selection. Finder UI depends on Foundry v14 APIs and remains live-unverified.
 - Preset distances use the Scene's configured distance units; the numbers assume scenes measured in feet. They are game-friendly approximations, **not measured bulb lumens**. Adjust individual native Ambient Lights as needed.
 - Item drop uses the Foundry `dropCanvasData` hook. It is designed for **world Items created in the WoD Light folder**. Compendium-only or nested third-party drag flows have not been confirmed.
 - Stationary light placement is GM-only. Players can toggle a light only when carrying its tagged equipment Item.
@@ -74,7 +74,7 @@ Only the token's owner or the GM can operate the button. No equipment Item => no
 
 ## Technical
 
-- Module ID: `wod-light`; version: `0.1.4`.
+- Module ID: `wod-light`; version: `0.1.5`.
 - WoD20 generic equipment type: `Item`.
 - Preset Item flag: `flags.wod-light.presetId`.
 - Token flags: `flags.wod-light.activeId` and `flags.wod-light.previousLight`.
@@ -82,6 +82,12 @@ Only the token's owner or the GM can operate the button. No equipment Item => no
 - No modified system files or external dependencies.
 
 ## Release notes
+
+### 0.1.5 — 2026-10-17
+- Continuously pulse every visible WoD Light fixture while the GM is using Foundry's **Lighting** controls; stop and clean up immediately when switching tools or scenes.
+- Markers stay at the light's position through panning, updating, creation, deletion and native layer activation changes. One noninteractive CSS-animated overlay per visible fixture; no repeated JS polling or world document modifications.
+- Preserve the brief named placement pulse, hover/selection labels, Find WoD Lights list, all 27 custom SVG Item icons, and token lighting controls.
+- Tests: Node mocked Foundry lifecycle, visibility, movement, add/remove and rapid control changes passed; live Foundry v14 pending.
 
 ### 0.1.4 — 2026-10-17
 - Expanded the v0.1.3 local Select-tool pulse feature to reliably trigger from both Lighting layer activation and native Select tool activation using Foundry v14 control callbacks.

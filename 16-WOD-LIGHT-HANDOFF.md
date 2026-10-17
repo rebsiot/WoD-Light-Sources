@@ -3,7 +3,7 @@
 **Owning conversation:** `16.0 — WoD Light` (user-selected initial thread name)  
 **Next development conversation:** `16.1 — WoD Light Improvements`  
 **Created:** 2026-10-16  
-**Status:** v0.1.2 implemented and local tests passed; user confirmed initial map placement issue; finder + SVG art **live Foundry verification pending**.
+**Status:** v0.1.5 implemented and mock-tested; GitHub publication pending at handoff authoring; live Foundry verification pending.
 
 ## Purpose and settled requirements
 
@@ -14,6 +14,16 @@
 - Giving a portable preset Item to an Actor causes a Torch-like lightbulb to appear in the upper-left Token HUD; click on/off, right-click to choose carried source.
 - A flashlight emits a cone of light which should turn with token rotation. Players should never have to edit token light settings.
 - Native WoD20 Item type is exactly `Item`; do not change Actor schema or the other project's modules.
+
+## v0.1.5 — 2026-10-17 (this conversation)
+
+- **User request:** Keep WoD Light-created scene fixtures pulsing for the full duration that the GM's native Lighting controls are active; no three-second expiration.
+- **Implementation:** Per-visible-fixture, CSS-infinite amber pulse markers, rendered only for the GM and never blocking native light controls. `refreshContinuousLocators()` adds/removes/repositions overlay DOM elements on `canvasPan`, `canvasReady`, and Ambient Light create/update/delete; clean up on Lighting control deactivation, native `activateCanvasLayer`/`deactivateLightingLayer` hooks, and `canvasTearDown`.
+- Existing `getSceneControlButtons` callback support handles both Lighting control and subtool selection. Rapid activation/deactivation cancels stale frame callbacks. No interval polling, Tile, Actor/Scene mutation or special permissions.
+- Existing short placement pulse, hover/selected-name labels, Find WoD Lights, 27 SVG icons, and inventory-aware portable Token HUD retained. Other-Level filtering remains optional and unobtrusive for ordinary Scenes.
+- **Mock coverage:** 27 icons, selective Item image upgrades, Foundry v14 tool callbacks and lifecycle, continuous ring idempotence/visibility/camera movement/creation/deletion, quick tool switches/teardown, finder, light placement and Token HUD. Live Foundry v14 and WoD20 client smoke test still needed.
+- **Module ID:** `wod-light`, version **0.1.5**. Stable manifest `https://github.com/rebsiot/WoD-Light-Sources/releases/latest/download/module.json`. No cross-module contracts changed. No world migrations.
+- **First live test:** On the subway Scene activate Lighting, leave it open >10 seconds to verify persistent markers; switch to Tokens to verify instant disappearance, switch back to Lighting to verify they return. Verify native light can be moved with rings visible.
 
 ## v0.1.2 — 2026-10-17
 

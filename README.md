@@ -1,7 +1,7 @@
 # WoD-Light-Sources
 A folder of items to import into WoD worlds with pre-configured lights
 
-## WoD Light v0.1.4
+## WoD Light v0.1.5
 
 This repository contains the complete source for a small campaign-focused Foundry VTT v14 module for the World of Darkness 20th system.
 
@@ -11,6 +11,6 @@ This repository contains the complete source for a small campaign-focused Foundr
 
 **Install:** Download this repository and copy its internal `wod-light` folder to `Z:\\Data\\modules\\wod-light` (with `module.json` immediately inside). Restart Foundry, enable WoD Light in the intended world, and accept the GM prompt to create 27 preset Items. Back up the world before installing. See the [module README](wod-light/README.md) for usage and rollback.
 
-**Status:** v0.1.4 adds larger Lighting/Select pulses and readable labels for hovered or selected fixtures. Syntax/mock tests passed. Live Foundry v14 / WoD20 behavior has not yet been verified. This is a lightweight campaign utility, not a replacement for Foundry's native lighting system.
+**Status:** v0.1.5 keeps GM-only fixture rings gently pulsing while native Lighting tools are active. Syntax/mock tests passed. Live Foundry v14 / WoD20 behavior has not yet been verified. This is a lightweight campaign utility, not a replacement for Foundry's native lighting system.
 
-**v0.1.4 interaction:** In Foundry's Lighting controls, Select briefly pulses visible WoD Light fixtures. Hover or select a fixture to see its name and editing hint. Ordinary scenes do not require Levels.
+**v0.1.5 interaction:** In Foundry's Lighting controls, WoD Light fixtures remain visibly pulsing until the GM leaves Lighting. Hover or select a fixture to see its name and editing hint. Ordinary scenes do not require Levels.

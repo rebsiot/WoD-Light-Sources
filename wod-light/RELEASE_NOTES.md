@@ -1,3 +1,23 @@
+# WoD Light v0.1.5 — 2026-10-17
+
+Foundry v14 Lighting locator improvement for the St. Louis v2 campaign.
+
+- **Changed:** WoD Light fixtures keep pulsing continuously whenever the GM has Foundry's native Lighting controls active, instead of fading out after a few seconds. Switching to another control category or Scene clears the markers at once.
+- **Usability:** Amber, readable 68px rings are GM-local, pointer-transparent and maintain their positions when the map pans, lights move, or fixtures are created/deleted. No new settings or GM panel.
+- **Accessibility:** Reduced-motion users see a steady highlighted ring rather than an animation.
+- **Preserved:** native Ambient Lights, 27 SVG presets, Item icons, Find WoD Lights/search, names on hover/selection, portable Token HUD switching, optional Level filtering, all existing Scene and Actor data.
+- **Compatibility:** Same module ID `wod-light` and stable Foundry manifest URL. No new permissions, migrations, or API contracts.
+
+**Install/upgrade:** Back up world and module folder. Update WoD Light in Foundry Setup from the existing manifest, then restart Foundry and hard-refresh your client. No Item reimport needed. ZIP manual install: extract its contents to `Z:\Data\modules\wod-light\` so `module.json` is directly in that folder.
+
+**Rollback:** Restore v0.1.4 module source or disable the module; fixtures and Items remain because this release does not migrate data. Keep the SVG assets introduced in v0.1.2+ if using newer Item image paths.
+
+**Local tests:** JavaScript syntax and Node v22 mock tests passed. Verified persistent locator lifecycle across activation, duplicate events, camera pans, visibility and Level filters, document creation/deletion/movement, player permissions, leaving Lighting and Scene teardown. **No live Foundry/browser test was run.**
+
+**First live check:** On the subway Scene, enter Lighting. Confirm your existing Office Fluorescent rings continue pulsing past 3 seconds, remain movable and stop immediately when you select another control category. If it fails, report the specific action and console errors.
+
+---
+
 # WoD Light v0.1.4 — 2026-10-17
 
 Lighting locator usability upgrade for Foundry VTT v14 and WoD20. Includes the v0.1.3 local-only select-tool pulse changes in the publicly installable release.
