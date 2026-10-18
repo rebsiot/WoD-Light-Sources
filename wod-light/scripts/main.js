@@ -4,14 +4,14 @@ import { installHeldLightOffsets } from "./held-lights.js";
 import { registerLightFinderTool, showLightFinder, locateWoDLight, closeLightOverlays, refreshLightMarkers, pulseLightPosition, onLightHover, onLightControl, onCanvasPointerMove, onCanvasPointerUp, onCanvasLayerActivated, onLightingLayerDeactivated } from "./finder.js";
 
 const MOD = "wod-light";
-const ROOT_NAME = "WoD Light";
+const ROOT_NAME = "AFT Lighting+";
 const CATALOG_REVISION = "51-presets";
 const LEGACY_ICON_PATHS = new Set(["icons/svg/light.svg", "icons/svg/torch.svg"]);
 const iconForPreset = p => `modules/${MOD}/assets/icons/${p.id}.svg`;
 
 function warn(message, error) {
-  console.error(`WoD Light | ${message}`, error);
-  ui.notifications.error(`WoD Light: ${message}`);
+  console.error(`AFT Lighting+ | ${message}`, error);
+  ui.notifications.error(`AFT Lighting+: ${message}`);
 }
 
 // A compact, opt-in library install: no changes to existing Items or other world folders.
@@ -19,7 +19,7 @@ export async function installPresets() {
   if (!game.user.isGM) return 0;
   const adapter = getSystemAdapter();
   if (!systemCanCreateItems(adapter)) {
-    ui.notifications.warn("WoD Light: this game system does not have a supported native light-preset Item type. No Items were changed.");
+    ui.notifications.warn("AFT Lighting+: this game system does not have a supported native light-preset Item type. No Items were changed.");
     return 0;
   }
   let root = game.folders.find(f => f.type === "Item" && f.getFlag(MOD, "libraryRoot"));
@@ -50,7 +50,7 @@ export async function installPresets() {
     .map(p => presetItemData(p, groups.get(p.group).id, adapter, iconForPreset(p)));
   if (missing.length) await Item.createDocuments(missing);
   await game.settings.set(MOD, "presetsInstalled", true);
-  ui.notifications.info(`WoD Light: ${missing.length ? `created ${missing.length} light preset Items` : "light presets already installed"}.`);
+  ui.notifications.info(`AFT Lighting+: ${missing.length ? `created ${missing.length} light preset Items` : "light presets already installed"}.`);
   return missing.length;
 }
 
@@ -69,8 +69,8 @@ export async function offerMissingPresetsOnUpgrade() {
   // game.wodLight.installPresets() later. No Scene, Actor, or Item edits yet.
   await game.settings.set(MOD, "catalogPromptedFor", CATALOG_REVISION);
   const confirmed = await foundry.applications.api.DialogV2.confirm({
-    window: { title: "WoD Light — New Light Presets" },
-    content: `<p>Add <strong>${missing} missing light presets</strong> to your existing <strong>WoD Light</strong> Items folders?</p><p>Only missing presets will be created. Your existing Items, custom images, Actors and placed lights are unchanged.</p>`,
+    window: { title: "AFT Lighting+ — New Light Presets" },
+    content: `<p>Add <strong>${missing} missing light presets</strong> to your existing light preset Items folders?</p><p>Only missing presets will be created. Your existing Items, custom images, Actors and placed lights are unchanged.</p>`,
     yes: { label: `Add ${missing} Lights` },
     no: { label: "Not Now" },
     rejectClose: false
@@ -114,7 +114,7 @@ function viewedLevelForScene(scene) {
   };
 }
 
-// Prefer native Lighting and Placeables tools to a second WoD Light manager.
+// Prefer native Lighting and Placeables tools to a second AFT Lighting+ manager.
 // A newly created document may take a few animation frames to get its placeable.
 export async function focusPlacedLight(scene, documentId) {
   if (!game.user.isGM || !documentId || canvas?.scene?.id !== scene?.id) return false;
@@ -153,18 +153,18 @@ export async function placePresetOnScene(presetId, x, y, scene = canvas?.scene) 
   // Lighting layer exposes drag-to-move and Delete without hunting for a dot.
   let focused = false;
   try { focused = await focusPlacedLight(scene, created[0].id); }
-  catch (error) { console.warn("WoD Light | created light but could not select it", error); }
+  catch (error) { console.warn("AFT Lighting+ | created light but could not select it", error); }
   // This stays in the GM browser only; no world marker or multiplayer ping.
   if (canvas?.scene?.id === scene.id) pulseLightPosition(x, y, preset.name);
   if (!shownPlacementHint) {
     shownPlacementHint = true;
     ui.notifications.info(focused
-      ? "WoD Light: new light selected. Drag to move or Delete; use Lighting > Find WoD Lights to find it later."
-      : "WoD Light: light placed. Use Lighting > Find WoD Lights to locate it.");
+      ? "AFT Lighting+: new light selected. Drag to move or Delete; use Lighting > Find Preset Lights to find it later."
+      : "AFT Lighting+: light placed. Use Lighting > Find Preset Lights to locate it.");
   }
   if (created[0]?.id) {
     try { await game.settings.set(MOD, "lastPlaced", `${scene.id}:${created[0].id}`); }
-    catch (error) { console.warn("WoD Light | could not remember last placed fixture", error); }
+    catch (error) { console.warn("AFT Lighting+ | could not remember last placed fixture", error); }
   }
   return true;
 }
@@ -209,7 +209,7 @@ export async function setCarriedLight(token, selectedId = null) {
   // PF2e can apply its own TokenLight rule elements, which may overwrite or
   // combine with direct TokenDocument light updates. Never fight those rules.
   if (selectedId && conflictsWithPf2eTokenLight(token?.actor)) {
-    ui.notifications.warn("WoD Light: PF2e already controls this token's lighting via a TokenLight rule. Remove or disable that effect before using the WoD Light HUD.");
+    ui.notifications.warn("AFT Lighting+: PF2e already controls this token's lighting via a TokenLight rule. Remove or disable that effect before using the AFT Lighting+ HUD.");
     return false;
   }
 
@@ -347,12 +347,12 @@ Hooks.once("ready", async () => {
   if (!game.user.isGM) return;
   const adapter = getSystemAdapter();
   if (!systemCanCreateItems(adapter)) {
-    console.warn("WoD Light | preset Item installation is supported for worldofdarkness, pf2e, and dnd5e only; native scene-light utilities remain available");
+    console.warn("AFT Lighting+ | preset Item installation is supported for worldofdarkness, pf2e, and dnd5e only; native scene-light utilities remain available");
     return;
   }
   try {
     const count = await refreshPresetIcons();
-    if (count) ui.notifications.info(`WoD Light: updated ${count} original preset icons. Customized images were preserved.`);
+    if (count) ui.notifications.info(`AFT Lighting+: updated ${count} original preset icons. Customized images were preserved.`);
   } catch (error) { warn("could not refresh light icons", error); }
   if (game.settings.get(MOD, "presetsInstalled")) {
     try { await offerMissingPresetsOnUpgrade(); }
@@ -361,8 +361,8 @@ Hooks.once("ready", async () => {
   }
   try {
     const confirmed = await foundry.applications.api.DialogV2.confirm({
-      window: { title: "WoD Light — Install Presets" },
-      content: `<p>Create the ${PRESETS.length} starter light Items in an <strong>WoD Light</strong> folder?</p><p>This only adds missing Items and does not modify existing characters or Scenes.</p>`,
+      window: { title: "AFT Lighting+ — Install Presets" },
+      content: `<p>Create the ${PRESETS.length} starter light Items in an <strong>AFT Lighting+</strong> folder?</p><p>This only adds missing Items and does not modify existing characters or Scenes.</p>`,
       yes: { label: "Create Light Items" },
       no: { label: "Not Now" },
       rejectClose: false

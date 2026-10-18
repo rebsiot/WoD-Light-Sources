@@ -81,6 +81,6 @@ export function installHeldLightOffsets() {
     direction = true;
   }
 
-  if (!origin || !direction) console.warn("WoD Light | v14 held-light API differs; edge origin or cone orientation may not be available", {origin, direction});
+  if (!origin || !direction) console.warn("AFT Lighting+ | v14 held-light API differs; edge origin or cone orientation may not be available", {origin, direction});
   return {origin, direction};
 }

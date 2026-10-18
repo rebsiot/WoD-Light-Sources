@@ -1,22 +1,21 @@
-# WoD Light v0.2.0 — More game systems
+# AFT Lighting+ v0.2.1 — A clearer name in Foundry
 
-WoD Light can now create native light-preset Items in **World of Darkness 20th, Pathfinder 2e, and D&D 5e**, including its 2014 and 2024 rule options. The 51 light presets, familiar icons, scene light controls, and Token HUD remain the same.
+The module formerly shown as **WoD Light** is now **AFT Lighting+**. It should appear under that name in Foundry's module lists, making it easier to recognize among other AFT modules.
 
 ## What's changed
 
-- In PF2e the library creates equipment Items; in D&D5e it creates loot Items. Existing WoD20 Items are untouched.
-- Portable Items still use the lightbulb Token HUD. PF2e tokens with an active `TokenLight` rule are not overwritten by the module's handheld switch.
-- The module no longer requires the WoD20 system in its manifest. Unsupported game systems are not offered an unsafe Item library.
-- The public README now starts with setup and two examples, correctly says **51 presets**, and clarifies the layout of the release ZIP.
+- Renamed the visible module title, lighting finder and in-world prompts.
+- New worlds create an **AFT Lighting+** Items library; existing **WoD Light** folders remain intact.
+- All **51 presets**, scene lights and portable Token HUD functionality are unchanged.
 
 ## Before updating
 
-Back up your world. Update through Foundry Setup, then restart/refresh the client. Already-installed library Items and placed lights are not migrated or replaced. There are no new presets to install if your world already has all 51.
+Back up your world, then update through Foundry Setup and reload the world. The internal module ID is still `wod-light`, so **do not install a second copy** or delete the old module: this is a normal update. No Item reimport is needed.
 
 ## Known limitations
 
-This is a cross-system test release. Automated Node/mocked Foundry tests pass, but there is **no recorded live three-system or multiplayer test** yet. Token-origin rendering, PF2e rule interactions, and D&D5e inventory-drop behavior need confirmation in Foundry v14. Check existing token lights before enabling another lighting module concurrently.
+The naming and source checks are automated. Previous cross-system compatibility is still awaiting live Foundry v14 tests in WoD20, PF2e and D&D5e, including player-held light behavior. A renamed module does **not** indicate whether it is enabled in a particular world; check the Module Management checkbox for each world.
 
 **Install manifest:** https://github.com/rebsiot/WoD-Light-Sources/releases/latest/download/module.json
 
-**Rollback:** Restore the earlier module package. World Items and Ambient Lights are not removed by code rollback; use your backed-up world only if reverting changes to world documents.
+**Rollback:** Restore the published v0.2.0 module files if required. The name update does not migrate or remove any world data; existing Items and Scene Ambient Lights are retained.

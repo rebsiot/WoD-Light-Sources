@@ -1,4 +1,4 @@
-name: Publish WoD Light release
+name: Publish AFT Lighting+ release
 
 on:
   push:
@@ -31,6 +31,7 @@ jobs:
           for script in wod-light/scripts/*.js; do node --check "$script"; done
           node --check tests/smoke.mjs
           node tests/smoke.mjs
+          node tests/branding-smoke.mjs
           test "$(find wod-light/assets/icons -maxdepth 1 -name '*.svg' | wc -l)" -eq 51
           python3 -c "from pathlib import Path; from xml.etree import ElementTree as ET; [ET.parse(str(p)) for p in Path('wod-light/assets/icons').glob('*.svg')]"
           VERSION="$(node -p "require('./wod-light/module.json').version")"
@@ -39,6 +40,7 @@ jobs:
           const assert = require('node:assert/strict');
           const m = require('./wod-light/module.json');
           assert.equal(m.id, 'wod-light');
+          assert.equal(m.title, 'AFT Lighting+');
           assert.equal(m.compatibility.minimum, '14');
           assert.equal(m.relationships?.systems, undefined);
           assert.equal(m.download, `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/v${m.version}/wod-light.zip`);
@@ -60,5 +62,5 @@ jobs:
           gh release create "$TAG" wod-light.zip wod-light/module.json \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "WoD Light v${VERSION} - Cross-system test release" \
+            --title "AFT Lighting+ v${VERSION}" \
             --notes-file wod-light/RELEASE_NOTES.md

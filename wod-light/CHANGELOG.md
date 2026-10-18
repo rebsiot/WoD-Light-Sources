@@ -1,4 +1,13 @@
-# WoD Light — Changelog
+# AFT Lighting+ — Changelog
+
+## 0.2.1 — 2026-10-18
+- Renamed the **display name** to **AFT Lighting+** so it is easy to find in Foundry's Add-on Modules and per-world Module Management lists.
+- Updated the in-world finder label, installation prompts, notifications, and repository documentation.
+- Fresh installs now create an **AFT Lighting+** Items folder; existing flagged **WoD Light** library folders are recognized and left untouched.
+- Kept the internal module ID `wod-light`, `flags.wod-light.*`, all 51 presets and SVGs, Token HUD controls, and prior Ambient Lights unchanged. No content migration or new Item import.
+- Automated syntax/invariant tests and the GitHub smoke test verify package behavior. Three-system live Foundry verification remains pending.
+
+---
 
 ## 0.2.0 — 2026-10-17
 - Native Item adapters for WoD20 (`Item`), PF2e (`equipment`), and D&D5e (`loot`), including 2014/2024 rules.

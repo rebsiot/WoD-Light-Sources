@@ -1,10 +1,10 @@
-# WoD Light
+# AFT Lighting+
 
-**Place lights on a Foundry scene; switch on a carried light from the Token HUD.** WoD Light provides 51 practical, illustrated lighting presets without replacing Foundry's lighting engine.
+**Place lights on a Foundry scene; switch on a carried light from the Token HUD.** AFT Lighting+ provides 51 practical, illustrated lighting presets without replacing Foundry's lighting engine.
 
-**GM example:** In **Items → WoD Light → Indoor**, drag an office fluorescent preset onto a scene. Foundry creates an editable Ambient Light. Activate **Lighting** to see persistent locator pulses for the module's lights, or use **Find WoD Lights** to search for a fixture.
+**GM example:** In **Items → AFT Lighting+ → Indoor** (or **WoD Light → Indoor** for an existing install), drag an office fluorescent preset onto a scene. Foundry creates an editable Ambient Light. Activate **Lighting** to see persistent locator pulses for the module's lights, or use **Find Preset Lights** to search for a fixture.
 
-**Player example:** Carry a **Flashlight** Item. On the token, right-click to open its HUD and use the lightbulb to turn the beam on or off. The token's earlier light setting is restored when you turn the carried light off.
+**Player example:** Give your character a **Flashlight** from the Portable preset folder. On the token, right-click to open its HUD and use the lightbulb to turn the beam on or off. The token's earlier light setting is restored when you turn the carried light off.
 
 ## Requirements and supported game systems
 
@@ -20,7 +20,7 @@ The **core lighting code is system-independent**, but inventory presets and Toke
 
 1. Back up the world, then go to **Foundry Setup → Add-on Modules → Install Module**.
 2. Paste the manifest: `https://github.com/rebsiot/WoD-Light-Sources/releases/latest/download/module.json`.
-3. Install, enable **WoD Light** in the intended world, and refresh the browser after updating.
+3. Install, enable **AFT Lighting+** in the intended world, and refresh the browser after updating.
 4. As GM, accept the optional prompt to create the **51 light presets** in four Item folders.
 5. Drag scene presets onto the map; give portable presets to characters to use the Token HUD.
 
@@ -37,3 +37,5 @@ The **core lighting code is system-independent**, but inventory presets and Toke
 - [GitHub releases](https://github.com/rebsiot/WoD-Light-Sources/releases) · [Report an issue](https://github.com/rebsiot/WoD-Light-Sources/issues)
 
 The vector icons are custom project-generated artwork. No TC Modern creator maps, subscriber assets or player data are included. **No explicit open-source license has been granted** for this repository; discuss redistribution terms with the maintainer. Live Foundry/GM/player testing is required before general compatibility or stability claims.
+
+**Renaming:** Foundry now lists this module as **AFT Lighting+**. Its unchanged internal ID is `wod-light`, so upgrades preserve existing flags, Items, and installed module identity. Old **WoD Light** Items folders remain unchanged; new installs use **AFT Lighting+**.

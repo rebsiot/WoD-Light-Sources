@@ -1,4 +1,4 @@
-# WoD Light — Preset Catalog (v0.1.7)
+# AFT Lighting+ — Preset Catalog (51 presets)
 
 Gameplay-scaled defaults in **scene distance units**, assuming feet. **Bright** and **Dim** are radii, not diameters. The wattage in legacy names is descriptive, not a measured lumen conversion.
 
@@ -79,4 +79,4 @@ Legend: **New** = introduced in v0.1.7. Directional angles under 360° create co
 
 ## Upgrade behavior
 
-On the first GM login after updating an existing library, WoD Light offers to add only missing presets (typically 24). Accepting creates new world Items and their supplied SVG icons. Declining does not nag again on every reload; a GM may run `game.wodLight.installPresets()` later. Existing Item IDs, artwork, values, and Actor copies are preserved. No Scene lights are created until the GM drags a preset onto a scene.
+On the first GM login after updating an existing library, AFT Lighting+ offers to add only missing presets (typically 24). Accepting creates new world Items and their supplied SVG icons. Declining does not nag again on every reload; a GM may run `game.wodLight.installPresets()` later. Existing Item IDs, artwork, values, and Actor copies are preserved. No Scene lights are created until the GM drags a preset onto a scene.
