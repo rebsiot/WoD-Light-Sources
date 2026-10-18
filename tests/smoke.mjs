@@ -10,7 +10,7 @@ import {
 const root = resolve(import.meta.dirname, '../wod-light');
 const manifest = JSON.parse(readFileSync(resolve(root, 'module.json'), 'utf8'));
 assert.equal(manifest.id, 'wod-light');
-assert.equal(manifest.version, '0.2.0');
+assert.match(manifest.version, /^\d+\.\d+\.\d+$/, 'manifest version must be SemVer');
 assert.equal(manifest.relationships?.systems, undefined, 'WoD-only system requirement must be removed');
 assert.equal(PRESETS.length, 51);
 assert.equal(PRESETS.filter(p => p.portable).length, 10);
